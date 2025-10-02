@@ -345,43 +345,57 @@
         updateDateTime(); // Initial call
 
         // Core API Call (Uses GET method for all data exchange)
-        async function postData(payload) {
-            // Disable all action buttons during request
-            document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
-            
-            const queryString = Object.keys(payload)
-                .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
-                .join('&');
+// Core API Call (Uses GET method for all data exchange)
+async function postData(payload) {
+    // 1. Disable all action buttons and show loading UI (New)
+    document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
+    
+    // 2. Show a temporary loading notification (New)
+    showNotification('กำลังดำเนินการ...', 'info', 60000); // 60s timeout for loading
 
-            const get_url = WEB_APP_URL + '?' + queryString;
-            
-            try {
-                const response = await fetch(get_url, {
-                    method: 'GET'
-                });
+    const queryString = Object.keys(payload)
+        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
+        .join('&');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP Error! Status: ${response.status}`);
-                }
-                
-                const responseText = await response.text();
-                
-                try {
-                    const result = JSON.parse(responseText);
-                    return result;
-                } catch (e) {
-                    console.error("Failed to parse JSON:", responseText);
-                    throw new Error('Server returned invalid data format.');
-                }
+    const get_url = WEB_APP_URL + '?' + queryString;
+    
+    try {
+        const response = await fetch(get_url, {
+            method: 'GET'
+        });
 
-            } catch (error) {
-                console.error("Fetch/Server Connection Error:", error);
-                return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
-            } finally {
-                // Re-enable all action buttons
-                document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = false);
-            }
+        if (!response.ok) {
+            throw new Error(`HTTP Error! Status: ${response.status}`);
         }
+        
+        const responseText = await response.text();
+        
+        try {
+            const result = JSON.parse(responseText);
+            
+            // ถ้าเป็นรายการแก้ไข/เพิ่มสำเร็จ ให้ทำการโหลดข้อมูลใหม่
+            if (result.success && ['ADD_TRANSACTION', 'ADD_ESTIMATE', 'DELETE_TRANSACTION', 'DELETE_ESTIMATE', 'FORWARD_ESTIMATE'].includes(payload.action)) {
+                 loadAllData(); // <-- แก้ไข: สั่งโหลดข้อมูลทันทีที่ทำรายการสำเร็จ
+            }
+            
+            return result;
+        } catch (e) {
+            console.error("Failed to parse JSON:", responseText);
+            throw new Error('Server returned invalid data format.');
+        }
+
+    } catch (error) {
+        console.error("Fetch/Server Connection Error:", error);
+        return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
+    } finally {
+        // 3. Re-enable all action buttons (New)
+        document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = false);
+        
+        // 4. Hide the loading notification (New)
+        document.getElementById('notification').classList.remove('show', 'info');
+        document.getElementById('notification').style.display = 'none';
+    }
+}
         
         // *** 3. UI MANAGEMENT ***
 
@@ -411,31 +425,38 @@
         // *** 4. LOGIN & AUTHENTICATION ***
 
         // Check for stored credentials on load
-        function checkAutoLogin() {
-            const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
-            const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
-            
-            if (storedUser && storedPasscode) {
-                document.getElementById('username').value = storedUser;
-                document.getElementById('passcode').value = storedPasscode;
-                login(true); // Attempt silent auto-login
-            } else {
-                loadAccountName(); // Load name using System user
-            }
-        }
+// Check for stored credentials on load
+function checkAutoLogin() {
+    // 1. โหลดชื่อบัญชี Pool Villa (บัญชีหลัก) เสมอ
+    loadAccountName(); 
+    
+    const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
+    const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
+    
+    if (storedUser && storedPasscode) {
+        document.getElementById('username').value = storedUser;
+        document.getElementById('passcode').value = storedPasscode;
+        login(true); // Attempt silent auto-login
+    } 
+    // ถ้าไม่มี auto-login ก็ยังคงแสดงแค่ชื่อบัญชี Pool Villa
+}
         
         // Load account name using a 'System' GET request
-        async function loadAccountName() {
-            document.getElementById('account-name-display').textContent = 'กำลังโหลด...';
-            const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
-            const result = await postData(payload);
+// Load account name using a 'System' GET request
+async function loadAccountName() {
+    // 1. แสดงสถานะกำลังโหลด
+    document.getElementById('account-name-display').textContent = 'กำลังโหลด...'; 
+    const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
+    const result = await postData(payload); // ใช้ postData เพื่อจัดการ Loading UI
 
-            if (result.success && result.accountName) {
-                document.getElementById('account-name-display').textContent = `เข้าสู่บัญชี: ${result.accountName}`;
-            } else {
-                document.getElementById('account-name-display').textContent = `เข้าสู่บัญชี: ${result.message || 'Error: Check Apps Script'}`;
-            }
-        }
+    if (result.success && result.accountName) {
+        // 2. แสดงชื่อบัญชี (Pool Villa)
+        document.getElementById('account-name-display').textContent = `${result.accountName}`;
+    } else {
+        // 3. กรณีโหลดล้มเหลว
+        document.getElementById('account-name-display').textContent = `บัญชีหลัก: Error`;
+    }
+}
 
         // User Login function
         async function login(isAuto = false) {
@@ -604,6 +625,26 @@
                 document.getElementById('visitor-count').textContent = 'N/A';
             }
         }
+		// Utility: Show stylish notification (Toast)
+// เพิ่ม parameter 'duration' (มิลลิวินาที)
+function showNotification(message, type = 'info', duration = 3000) {
+    const notif = document.getElementById('notification');
+    notif.className = ''; // Clear existing classes
+    notif.classList.add(type, 'show');
+    notif.textContent = message;
+    notif.style.display = 'block';
+
+    // ถ้า duration > 0 ให้ทำการตั้งเวลาซ่อน
+    if (duration > 0 && duration !== 60000) { // 60000 คือโค้ดสำหรับ loading ที่จะถูกปิดโดย postData.finally
+        // Auto hide
+        setTimeout(() => {
+            notif.classList.remove('show');
+            setTimeout(() => {
+                notif.style.display = 'none';
+            }, 500); // Wait for transition
+        }, duration);
+    }
+}
         
         // Render Transaction/Estimate List for Mobile
         function renderTransactionData(transactions) {
