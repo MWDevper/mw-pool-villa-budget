@@ -494,11 +494,15 @@ async function loadAccountName() {
         // User Login function
 // User Login function
 // User Login function
+// User Login function
 async function login(isAuto = false) {
     const passcode = document.getElementById('passcode').value.trim();
     const user = document.getElementById('username').value.trim();
     
-    // ... (ส่วนตรวจสอบค่าว่าง) ...
+    if (!passcode || !user) {
+        showNotification('กรุณากรอกรหัสผ่านและชื่อผู้ใช้งาน', 'info');
+        return false;
+    }
 
     const loginBtn = document.getElementById('login-btn');
     loginBtn.disabled = true;
@@ -509,8 +513,18 @@ async function login(isAuto = false) {
     loginBtn.disabled = false; 
 
     if (result.success) {
-        // ... (ส่วน Login สำเร็จเหมือนเดิม) ...
-        // ...
+        localStorage.setItem(LOGGED_IN_USER_KEY, user);
+        localStorage.setItem(LOGGED_IN_PASSCODE_KEY, passcode);
+        
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'block';
+        
+        // แสดงชื่อบัญชีและชื่อผู้ใช้ที่ล็อกอินอยู่
+        document.getElementById('account-name-display').innerHTML = `
+            <span>${result.accountName}</span>
+            <span id="user-greeting-display">สวัสดี, คุณ ${result.user}</span>
+        `;
+        document.getElementById('logout-btn').style.display = 'inline';
         
         showNotification('เข้าสู่ระบบสำเร็จ', 'success');
         loadAllData();
@@ -526,7 +540,7 @@ async function login(isAuto = false) {
              localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
              await loadAccountName(); 
 
-             // 3. แจ้งให้ผู้ใช้ล็อกอินอีกครั้ง (เพื่อเริ่มกระบวนการ login ใหม่แบบ Manual)
+             // 3. แจ้งให้ผู้ใช้ล็อกอินอีกครั้ง
              showNotification(`เซสชันหมดอายุ: กรุณาล็อกอินอีกครั้ง`, 'info', 5000);
              
              // 4. บังคับให้แสดงหน้า Login
@@ -789,6 +803,7 @@ async function login(isAuto = false) {
     </script>
 </body>
 </html>
+
 
 
 
