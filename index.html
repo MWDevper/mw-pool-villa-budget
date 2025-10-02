@@ -41,6 +41,15 @@
         #account-name-display {
             font-weight: bold;
             font-size: 1.1em;
+            /* เพิ่ม user info container */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        #user-greeting-display {
+            font-size: 0.8em;
+            opacity: 0.9;
+            margin-top: 2px;
         }
         #current-datetime {
             font-size: 0.85em;
@@ -219,10 +228,12 @@
 
     <header>
         <div>
-            <span id="account-name-display">กำลังโหลด...</span>
+            <div id="account-name-display">กำลังโหลด...</div>
+        </div>
+        <div>
+            <span id="current-datetime"></span>
             <button id="logout-btn" style="display: none;">ออกจากระบบ</button>
         </div>
-        <div id="current-datetime"></div>
     </header>
 
     <div class="container">
@@ -290,25 +301,27 @@
                 </div>
 
             <div class="content-section">
+                <h3>ยอดผู้เข้าชมทั้งหมด</h3>
+                <p style="font-size: 1.5em; font-weight: bold;" id="visitor-count">กำลังโหลด...</p>
+            </div>
+
+            <div class="content-section">
                 <h3>ประวัติการดำเนินการล่าสุด</h3>
                 <pre id="log-display"></pre>
             </div>
             
-            <div class="content-section">
-                <h3>ผู้เข้าชมทั้งหมด</h3>
-                <p style="font-size: 1.5em; font-weight: bold;" id="visitor-count">กำลังโหลด...</p>
-            </div>
 
         </section>
     </div>
 
     <footer>
-        <p>Pool Villa Budget App | Powered by Google Apps Script & GitHub Pages</p>
+        <p>Pool Villa Budget App | Powered by Google Apps Script</p>
+        <p>Make by K-หมิว</p>
     </footer>
 
     <script>
         // *** 1. CONFIGURATION & STATE ***
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzWQH2fyRyV4iRoXrVaUS-HKpcqK0LOm8deCcWkv8Fr01q03s4_GRhACfGjCbQ5oPXikA/exec'; // *** อย่าลืมเปลี่ยนเป็น URL ของคุณ ***
+        const WEB_APP_URL = 'YOUR_APPS_SCRIPT_DEPLOYMENT_URL_HERE'; // *** อย่าลืมเปลี่ยนเป็น URL ของคุณ ***
         let currentTab = 'add';
         let transactionType = 'EXPENSE'; 
         const LOGGED_IN_USER_KEY = 'budgetAppUser'; 
@@ -324,7 +337,6 @@
             notif.textContent = message;
             notif.style.display = 'block';
             
-            // ถ้า duration > 0 และไม่ใช่ duration สำหรับ Loading
             if (duration > 0 && duration !== 60000) { 
                 setTimeout(() => {
                     notif.classList.remove('show');
@@ -351,10 +363,10 @@
 
         // Core API Call (Uses GET method for all data exchange)
         async function postData(payload) {
-            // 1. Disable all action buttons and show loading UI
+            // 1. Disable all action buttons and show loading UI (แก้ไขข้อความ)
             document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
-            showNotification('กำลังดำเนินการ...', 'info', 60000); // 60s timeout for loading
-
+            showNotification('รอสักครู่...', 'info', 60000); // แสดงข้อความ "รอสักครู่"
+            
             const queryString = Object.keys(payload)
                 .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
                 .join('&');
@@ -375,7 +387,7 @@
                 try {
                     const result = JSON.parse(responseText);
                     
-                    // ถ้าเป็นรายการแก้ไข/เพิ่มสำเร็จ ให้ทำการโหลดข้อมูลใหม่ (แก้ปัญหา UI ไม่รีเฟรช)
+                    // ถ้าเป็นรายการแก้ไข/เพิ่มสำเร็จ ให้ทำการโหลดข้อมูลใหม่
                     if (result.success && ['ADD_TRANSACTION', 'ADD_ESTIMATE', 'DELETE_TRANSACTION', 'DELETE_ESTIMATE', 'FORWARD_ESTIMATE'].includes(payload.action)) {
                          await loadAllData(); 
                     }
@@ -425,51 +437,46 @@
         // *** 4. LOGIN & AUTHENTICATION (แก้ไข Autologin/Refresh) ***
 
         // Load account name (Pool Villa) using a 'System' GET request
-// Load account name (Pool Villa) using a 'System' GET request
-async function loadAccountName() {
-    // 1. แสดงสถานะกำลังโหลด
-    document.getElementById('account-name-display').textContent = 'กำลังโหลดบัญชี...'; 
-    
-    // เราใช้ postData เพื่อจัดการ Loading UI แต่ payload ถูกออกแบบมาสำหรับ System Login
-    const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
-    
-    // Note: การใช้ postData ตรงนี้จะแสดง Loading Toast ด้วย
-    const result = await postData(payload); 
+        async function loadAccountName() {
+            document.getElementById('account-name-display').innerHTML = 'กำลังโหลดบัญชี...'; 
+            
+            const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
+            const result = await postData(payload); 
 
-    if (result.success && result.accountName) {
-        document.getElementById('account-name-display').textContent = `${result.accountName}`;
-    } else {
-        document.getElementById('account-name-display').textContent = `บัญชีหลัก: Error`;
-    }
-}
+            if (result.success && result.accountName) {
+                // แสดงชื่อบัญชีหลัก
+                document.getElementById('account-name-display').innerHTML = `
+                    <span>${result.accountName}</span>
+                `;
+            } else {
+                document.getElementById('account-name-display').innerHTML = `<span>บัญชีหลัก: Error</span>`;
+            }
+        }
 
         // Check for stored credentials on load
-// Check for stored credentials on load
-async function checkAutoLogin() { 
-    // 1. โหลดชื่อบัญชี Pool Villa (บัญชีหลัก) เสมอ และต้องรอให้เสร็จ (AWAIΤ)
-    await loadAccountName(); 
-    
-    const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
-    const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
-    
-    if (storedUser && storedPasscode) {
-        document.getElementById('username').value = storedUser;
-        document.getElementById('passcode').value = storedPasscode;
-        
-        // 2. พยายาม Auto-login และต้องรอผลลัพธ์ (AWAIΤ)
-        const loginSuccess = await login(true); 
-        
-        if (!loginSuccess) {
-            // ถ้า Auto-login ล้มเหลว ให้แสดงหน้า Login
-            document.getElementById('login-screen').style.display = 'block';
-            document.getElementById('app-screen').style.display = 'none';
+        async function checkAutoLogin() { 
+            // 1. โหลดชื่อบัญชี Pool Villa (บัญชีหลัก) เสมอ และต้องรอให้เสร็จ
+            await loadAccountName(); 
+            
+            const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
+            const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
+            
+            if (storedUser && storedPasscode) {
+                document.getElementById('username').value = storedUser;
+                document.getElementById('passcode').value = storedPasscode;
+                
+                // 2. พยายาม Auto-login และต้องรอผลลัพธ์
+                const loginSuccess = await login(true); 
+                
+                if (!loginSuccess) {
+                    document.getElementById('login-screen').style.display = 'block';
+                    document.getElementById('app-screen').style.display = 'none';
+                }
+            } else {
+                document.getElementById('login-screen').style.display = 'block';
+                document.getElementById('app-screen').style.display = 'none';
+            }
         }
-    } else {
-        // 3. ถ้าไม่มีข้อมูล Local Storage ให้แสดงหน้า Login
-        document.getElementById('login-screen').style.display = 'block';
-        document.getElementById('app-screen').style.display = 'none';
-    }
-}
         
         // User Login function
         async function login(isAuto = false) {
@@ -495,7 +502,13 @@ async function checkAutoLogin() {
                 
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-screen').style.display = 'block';
-                document.getElementById('account-name-display').textContent = `สวัสดี, คุณ ${result.user}`;
+                
+                // แก้ไข: แสดงชื่อบัญชีและชื่อผู้ใช้ที่ล็อกอินอยู่
+                document.getElementById('account-name-display').innerHTML = `
+                    <span>${result.accountName}</span>
+                    <span id="user-greeting-display">สวัสดี, คุณ ${result.user}</span>
+                `;
+
                 document.getElementById('logout-btn').style.display = 'inline';
                 
                 showNotification('เข้าสู่ระบบสำเร็จ', 'success');
@@ -511,6 +524,7 @@ async function checkAutoLogin() {
                 if (isAuto) {
                     localStorage.removeItem(LOGGED_IN_USER_KEY);
                     localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
+                    loadAccountName(); // โหลดชื่อบัญชีหลักกลับมาแสดง
                 }
                 return false;
             }
@@ -519,18 +533,18 @@ async function checkAutoLogin() {
         async function logout() {
             const user = localStorage.getItem(LOGGED_IN_USER_KEY);
             
-            // ส่งคำขอ LOGOUT ไปยัง Apps Script
             await postData({ action: 'LOGOUT', user: user });
             
-            // ลบข้อมูลใน Local Storage
             localStorage.removeItem(LOGGED_IN_USER_KEY);
             localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
             
-            // ปรับ UI
             document.getElementById('login-screen').style.display = 'block';
             document.getElementById('app-screen').style.display = 'none';
             document.getElementById('logout-btn').style.display = 'none';
-            await loadAccountName(); // Reload system name
+            
+            // แก้ไข: โหลดชื่อบัญชีหลักกลับมาแสดงใน Header
+            await loadAccountName(); 
+            
             showNotification('ออกจากระบบแล้ว', 'info');
         }
         document.getElementById('logout-btn').addEventListener('click', logout);
@@ -557,7 +571,6 @@ async function checkAutoLogin() {
                 showNotification('บันทึกรายการสำเร็จ', 'success');
                 document.getElementById('transaction-description').value = '';
                 document.getElementById('transaction-amount').value = '';
-                // loadAllData ถูกเรียกใน postData แล้ว
             } else {
                 showNotification(`บันทึกรายการล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
@@ -583,13 +596,12 @@ async function checkAutoLogin() {
                 showNotification('เพิ่มรายการประเมินสำเร็จ', 'success');
                 document.getElementById('estimate-description').value = '';
                 document.getElementById('estimate-amount').value = '';
-                // loadAllData ถูกเรียกใน postData แล้ว
             } else {
                 showNotification(`เพิ่มรายการประเมินล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
         }
 
-        // *** 6. DATA DISPLAY (แก้ไขการส่ง index สำหรับลบ) ***
+        // *** 6. DATA DISPLAY ***
         
         async function loadAllData() {
             const payload = { action: 'GET_DATA' };
@@ -599,7 +611,8 @@ async function checkAutoLogin() {
                 renderTransactionData(result.transactions);
                 renderEstimateData(result.estimates);
                 renderLogs(result.logs);
-                document.getElementById('visitor-count').textContent = result.visitorCount || 0;
+                // แก้ไข: เพิ่ม "ครั้ง" ต่อท้ายตัวเลข
+                document.getElementById('visitor-count').textContent = (result.visitorCount || 0) + ' ครั้ง';
             } else {
                 showNotification(`ไม่สามารถโหลดข้อมูลได้: ${result.message || 'ข้อผิดพลาด'}`, 'error');
                 document.getElementById('data-display-section').innerHTML = '';
@@ -608,7 +621,6 @@ async function checkAutoLogin() {
             }
         }
         
-        // Render Transaction/Estimate List for Mobile
         function renderTransactionData(transactions) {
             let html = `
                 <div class="content-section">
@@ -643,7 +655,6 @@ async function checkAutoLogin() {
             html += `</tbody></table></div>`;
             
             const displaySection = document.getElementById('data-display-section');
-            // ใช้ innerHTML แทน += เพื่อรีเฟรชส่วนนี้ก่อน
             displaySection.innerHTML = html; 
         }
 
@@ -688,11 +699,9 @@ async function checkAutoLogin() {
             
             html += `</div>`;
             
-            // Append the Estimate HTML to the display section
             const displaySection = document.getElementById('data-display-section');
             displaySection.innerHTML += html;
             
-            // Update total estimate display
             document.getElementById('total-estimate-display').textContent = totalEstimate.toLocaleString('th-TH', { 
                 minimumFractionDigits: 2, maximumFractionDigits: 2 
             });
@@ -701,6 +710,7 @@ async function checkAutoLogin() {
         function renderLogs(logs) {
             const logElement = document.getElementById('log-display');
             if (logs.length > 0) {
+                // แสดง 10 รายการล่าสุด
                 const latestLogs = logs.slice(-10).reverse();
                 logElement.textContent = latestLogs.map(log => 
                     `[${log.Timestamp}] ${log.User}: ${log.Action}`
@@ -719,14 +729,13 @@ async function checkAutoLogin() {
             const payload = { 
                 action: 'DELETE_TRANSACTION',
                 user: user,
-                rowIndex: dataIndex // ส่ง 0-based index ไปให้ Backend
+                rowIndex: dataIndex 
             };
 
             const result = await postData(payload);
             
             if (result.success) {
                 showNotification('ลบรายการสำเร็จ', 'success');
-                // loadAllData ถูกเรียกใน postData แล้ว
             } else {
                 showNotification(`ลบรายการล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
@@ -741,14 +750,13 @@ async function checkAutoLogin() {
             const payload = { 
                 action: 'DELETE_ESTIMATE',
                 user: user,
-                rowIndex: dataIndex // ส่ง 0-based index ไปให้ Backend
+                rowIndex: dataIndex 
             };
 
             const result = await postData(payload);
             
             if (result.success) {
                 showNotification('ลบรายการประเมินสำเร็จ', 'success');
-                // loadAllData ถูกเรียกใน postData แล้ว
             } else {
                 showNotification(`ลบรายการประเมินล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
@@ -759,4 +767,3 @@ async function checkAutoLogin() {
     </script>
 </body>
 </html>
-
