@@ -99,29 +99,45 @@
         // API COMMUNICATION FUNCTIONS (ปรับปรุงล่าสุด)
         // ------------------------------------------------
 
-        async function postData(payload) {
-            try {
-                const response = await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json' 
-                    },
-                    body: JSON.stringify(payload)
-                });
+async function postData(payload) {
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify(payload)
+            });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP Error! Status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                return result;
-
-            } catch (error) {
-                console.error("Fetch/Server Connection Error:", error);
-                // ส่ง Error ที่ชัดเจนกลับไป เพื่อให้แสดงผลในหน้าเว็บได้
-                return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
+            // ตรวจสอบสถานะ HTTP (เช่น 200 OK)
+            if (!response.ok) {
+                // หาก HTTP Status ไม่ใช่ 200 (เช่น 404, 500) ให้ Throw Error ทันที
+                throw new Error(`HTTP Error! Status: ${response.status}`);
             }
+
+            // *** การแก้ไขที่สำคัญ: ตรวจสอบ Body ก่อนแปลงเป็น JSON ***
+            const responseText = await response.text();
+            if (!responseText) {
+                // หาก Apps Script ทำงานเสร็จแต่ไม่มีการตอบกลับ (Empty Response)
+                return { success: false, message: 'Server responded with empty data.' };
+            }
+            
+            // ลองแปลงเป็น JSON
+            try {
+                const result = JSON.parse(responseText);
+                return result;
+            } catch (e) {
+                // หากแปลง JSON ไม่ได้ (เช่น ได้ HTML Error มา)
+                console.error("Failed to parse JSON:", responseText);
+                throw new Error('Server returned invalid data format.');
+            }
+            // ******************************************************
+
+        } catch (error) {
+            console.error("Fetch/Server Connection Error:", error);
+            return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
         }
+    }
 
         async function refreshData() {
             // ป้องกันการ refresh ก่อนที่ UI จะพร้อม
@@ -337,4 +353,5 @@
     </script>
 </body>
 </html>
+
 
