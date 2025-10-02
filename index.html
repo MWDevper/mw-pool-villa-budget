@@ -527,7 +527,8 @@ async function login(isAuto = false) {
         document.getElementById('logout-btn').style.display = 'inline';
         
         showNotification('เข้าสู่ระบบสำเร็จ', 'success');
-        loadAllData();
+        setTimeout(loadAllData, 100); 
+        //loadAllData();
         return true;
     } else {
         // --- ส่วนที่แก้ไขปัญหาชื่อซ้ำ ---
@@ -803,6 +804,7 @@ async function login(isAuto = false) {
     </script>
 </body>
 </html>
+
 
 
 
