@@ -364,11 +364,10 @@
         // Core API Call (Uses GET method for all data exchange)
 // Core API Call (Uses GET method for all data exchange)
 // Core API Call (Uses GET method for all data exchange)
+// Core API Call (Uses GET method for all data exchange)
 async function postData(payload) {
-    // 1. Disable all action buttons and show loading UI (สำคัญ: ต้องเป็นคำสั่งแรกๆ)
     document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
-    // ✅ แก้ไข: ให้แน่ใจว่าฟังก์ชันนี้ถูกเรียกและแสดงผลทันที
-    showNotification('รอสักครู่...', 'info', 60000); // 60s timeout for loading
+    showNotification('รอสักครู่...', 'info', 60000); 
 
     const queryString = Object.keys(payload)
         .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
@@ -380,16 +379,39 @@ async function postData(payload) {
         const response = await fetch(get_url, {
             method: 'GET'
         });
-        // ... (ส่วนที่เหลือเหมือนเดิม) ...
+
+        // 1. ตรวจสอบสถานะ HTTP (รวมถึง 404)
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`HTTP Error Status: ${response.status}`, errorText);
+            
+            // ส่งกลับ Error ที่ชัดเจน
+            return { success: false, message: `Server ตอบกลับ Error ${response.status} (อาจเป็น URL ผิด/สิทธิ์เข้าถึงผิด)` };
+        }
+        
+        // 2. พยายามแปลงเป็น JSON
+        const responseText = await response.text();
+        
+        try {
+            const result = JSON.parse(responseText);
+            
+            // ถ้าเป็นรายการแก้ไข/เพิ่มสำเร็จ ให้ทำการโหลดข้อมูลใหม่
+            if (result.success && ['ADD_TRANSACTION', 'ADD_ESTIMATE', 'DELETE_TRANSACTION', 'DELETE_ESTIMATE', 'FORWARD_ESTIMATE'].includes(payload.action)) {
+                 await loadAllData(); 
+            }
+            
+            return result;
+        } catch (e) {
+            console.error("Failed to parse JSON:", responseText, e);
+            // กรณี Apps Script ส่ง HTML หรือ Text อื่นๆ กลับมา
+            return { success: false, message: 'Server ส่งข้อมูลกลับมาผิดรูปแบบ (ไม่ใช่ JSON)' };
+        }
 
     } catch (error) {
-        // ... (ส่วนที่เหลือเหมือนเดิม) ...
-        return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
+        console.error("Fetch/Server Connection Error:", error);
+        return { success: false, message: 'การเชื่อมต่อ Network ล้มเหลว' };
     } finally {
-        // 2. Re-enable all action buttons
         document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = false);
-        
-        // 3. Hide the loading notification
         document.getElementById('notification').classList.remove('show', 'info');
         document.getElementById('notification').style.display = 'none';
     }
@@ -421,21 +443,28 @@ async function postData(payload) {
         // *** 4. LOGIN & AUTHENTICATION (แก้ไข Autologin/Refresh) ***
 
         // Load account name (Pool Villa) using a 'System' GET request
-        async function loadAccountName() {
-            document.getElementById('account-name-display').innerHTML = 'กำลังโหลดบัญชี...'; 
-            
-            const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
-            const result = await postData(payload); 
+async function loadAccountName() {
+    document.getElementById('account-name-display').innerHTML = 'กำลังโหลดบัญชี...'; 
+    
+    const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
+    
+    // ✅ ต้องมี await ตรงนี้เพื่อรอผลลัพธ์ก่อนจะไปบรรทัดถัดไป
+    const result = await postData(payload); 
 
-            if (result.success && result.accountName) {
-                // แสดงชื่อบัญชีหลัก
-                document.getElementById('account-name-display').innerHTML = `
-                    <span>${result.accountName}</span>
-                `;
-            } else {
-                document.getElementById('account-name-display').innerHTML = `<span>บัญชีหลัก: Error</span>`;
-            }
-        }
+    if (result.success && result.accountName) {
+        document.getElementById('account-name-display').innerHTML = `
+            <span>${result.accountName}</span>
+        `;
+        return true; 
+    } else {
+        // จะแสดงข้อความ Error จาก postData แทน Error ที่พังใน Console
+        document.getElementById('account-name-display').innerHTML = `
+            <span style="color: red;">บัญชีหลัก: โหลดล้มเหลว</span>
+        `;
+        showNotification(`โหลดบัญชีล้มเหลว: ${result.message || 'ข้อผิดพลาดไม่ทราบสาเหตุ'}`, 'error', 10000);
+        return false; 
+    }
+}
 
         // Check for stored credentials on load
         async function checkAutoLogin() { 
@@ -760,6 +789,7 @@ async function login(isAuto = false) {
     </script>
 </body>
 </html>
+
 
 
 
