@@ -496,6 +496,7 @@ async function loadAccountName() {
 // User Login function
 // User Login function
 // User Login function
+// User Login function
 async function login(isAuto = false) {
     const passcode = document.getElementById('passcode').value.trim();
     const user = document.getElementById('username').value.trim();
@@ -508,19 +509,20 @@ async function login(isAuto = false) {
     const loginBtn = document.getElementById('login-btn');
     loginBtn.disabled = true;
 
-    const payload = { action: 'LOGIN', passcode: passcode, user: user };
+    // ✅ ส่งสถานะ isAuto ไปให้ Backend ด้วย
+    const payload = { action: 'LOGIN', passcode: passcode, user: user, isAuto: isAuto }; 
     const result = await postData(payload);
 
     loginBtn.disabled = false; 
 
     if (result.success) {
+        // ... (โค้ดส่วน Login สำเร็จทั้งหมด) ...
         localStorage.setItem(LOGGED_IN_USER_KEY, user);
         localStorage.setItem(LOGGED_IN_PASSCODE_KEY, passcode);
         
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-screen').style.display = 'block';
         
-        // แสดงชื่อบัญชีและชื่อผู้ใช้ที่ล็อกอินอยู่
         document.getElementById('account-name-display').innerHTML = `
             <span>${result.accountName}</span>
             <span id="user-greeting-display">สวัสดี, คุณ ${result.user}</span>
@@ -528,35 +530,38 @@ async function login(isAuto = false) {
         document.getElementById('logout-btn').style.display = 'inline';
         
         showNotification('เข้าสู่ระบบสำเร็จ', 'success');
-        
-        // ✅ ปรับแก้: ใช้ setTimeout เพื่อให้ UI เปลี่ยนหน้าจอก่อนโหลดข้อมูล
         setTimeout(loadAllData, 100); 
         return true;
+
     } else {
         // *** ส่วนแก้ไขปัญหาหลัก: จัดการชื่อซ้ำ (Active Session) ***
         if (result.message && result.message.includes('มีชื่อนี้กำลังใช้งานอยู่ในระบบแล้ว')) {
-             // 1. เคลียร์เซสชันค้างใน Backend เสมอ ไม่ว่าจะ Manual หรือ Auto
+             
+             // 1. สั่ง LOGOUT เซสชันที่ค้างอยู่เสมอ
              await postData({ action: 'LOGOUT', user: user }); 
              
-             // 2. ถ้าเป็น Auto-login ที่ล้มเหลว (ปัญหา Refresh)
+             // 2. ถ้าเป็น Auto-login ล้มเหลว (ปัญหา Refresh)
              if (isAuto) {
                  localStorage.removeItem(LOGGED_IN_USER_KEY);
                  localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
-                 await loadAccountName(); 
+
                  showNotification(`เซสชันหมดอายุ: กรุณาล็อกอินอีกครั้ง`, 'info', 5000);
                  document.getElementById('login-screen').style.display = 'block';
                  document.getElementById('app-screen').style.display = 'none';
+                 await loadAccountName(); 
              } 
-             // 3. ถ้าเป็น Manual-login ที่ล้มเหลว (ปัญหาล็อกอินชื่อเดิมไม่ได้)
+             // 3. ถ้าเป็น Manual-login ล้มเหลว (ปัญหาล็อกอินชื่อเดิมไม่ได้)
              else {
-                 showNotification(`ชื่อ "${user}" มีเซสชันค้างอยู่ ระบบได้เคลียร์แล้ว กรุณาลองล็อกอินอีกครั้ง`, 'info', 5000);
+                 // หลังเคลียร์เซสชันแล้ว ให้ลองล็อกอินซ้ำอีกครั้งทันที
+                 showNotification(`เคลียร์เซสชันค้างแล้ว... กำลังลองล็อกอินใหม่`, 'info', 3000);
+                 // เรียกฟังก์ชัน login ซ้ำ แต่ต้องเป็น Manual
+                 setTimeout(() => login(false), 3000);
              }
         } 
-        // *** กรณี Login ล้มเหลวจากสาเหตุอื่น (เช่น รหัสผ่านผิด) ***
+        // ... (กรณี Login ล้มเหลวจากสาเหตุอื่น) ...
         else {
              showNotification(`เข้าสู่ระบบล้มเหลว: ${result.message || 'รหัสผ่านไม่ถูกต้อง'}`, 'error');
              
-             // ถ้า Auto-login ล้มเหลวจากสาเหตุอื่น ให้ล้าง Local Storage ด้วย
              if (isAuto) {
                  localStorage.removeItem(LOGGED_IN_USER_KEY);
                  localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
@@ -804,6 +809,7 @@ async function login(isAuto = false) {
     </script>
 </body>
 </html>
+
 
 
 
