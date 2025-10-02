@@ -362,54 +362,37 @@
         updateDateTime(); 
 
         // Core API Call (Uses GET method for all data exchange)
-        async function postData(payload) {
-            // 1. Disable all action buttons and show loading UI (แก้ไขข้อความ)
-            document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
-            showNotification('รอสักครู่...', 'info', 60000); // แสดงข้อความ "รอสักครู่"
-            
-            const queryString = Object.keys(payload)
-                .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
-                .join('&');
+// Core API Call (Uses GET method for all data exchange)
+async function postData(payload) {
+    // 1. Disable all action buttons and show loading UI (สำคัญ: ต้องเป็นคำสั่งแรกๆ)
+    document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
+    // ✅ แก้ไข: ให้แน่ใจว่าฟังก์ชันนี้ถูกเรียกและแสดงผลทันที
+    showNotification('รอสักครู่...', 'info', 60000); // 60s timeout for loading
 
-            const get_url = WEB_APP_URL + '?' + queryString;
-            
-            try {
-                const response = await fetch(get_url, {
-                    method: 'GET'
-                });
+    const queryString = Object.keys(payload)
+        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
+        .join('&');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP Error! Status: ${response.status}`);
-                }
-                
-                const responseText = await response.text();
-                
-                try {
-                    const result = JSON.parse(responseText);
-                    
-                    // ถ้าเป็นรายการแก้ไข/เพิ่มสำเร็จ ให้ทำการโหลดข้อมูลใหม่
-                    if (result.success && ['ADD_TRANSACTION', 'ADD_ESTIMATE', 'DELETE_TRANSACTION', 'DELETE_ESTIMATE', 'FORWARD_ESTIMATE'].includes(payload.action)) {
-                         await loadAllData(); 
-                    }
-                    
-                    return result;
-                } catch (e) {
-                    console.error("Failed to parse JSON:", responseText);
-                    throw new Error('Server returned invalid data format.');
-                }
+    const get_url = WEB_APP_URL + '?' + queryString;
+    
+    try {
+        const response = await fetch(get_url, {
+            method: 'GET'
+        });
+        // ... (ส่วนที่เหลือเหมือนเดิม) ...
 
-            } catch (error) {
-                console.error("Fetch/Server Connection Error:", error);
-                return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
-            } finally {
-                // 2. Re-enable all action buttons
-                document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = false);
-                
-                // 3. Hide the loading notification
-                document.getElementById('notification').classList.remove('show', 'info');
-                document.getElementById('notification').style.display = 'none';
-            }
-        }
+    } catch (error) {
+        // ... (ส่วนที่เหลือเหมือนเดิม) ...
+        return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
+    } finally {
+        // 2. Re-enable all action buttons
+        document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = false);
+        
+        // 3. Hide the loading notification
+        document.getElementById('notification').classList.remove('show', 'info');
+        document.getElementById('notification').style.display = 'none';
+    }
+}
         
         // *** 3. UI MANAGEMENT ***
 
@@ -479,56 +462,64 @@
         }
         
         // User Login function
-        async function login(isAuto = false) {
-            const passcode = document.getElementById('passcode').value.trim();
-            const user = document.getElementById('username').value.trim();
-            
-            if (!passcode || !user) {
-                showNotification('กรุณากรอกรหัสผ่านและชื่อผู้ใช้งาน', 'info');
-                return false;
-            }
+// User Login function
+async function login(isAuto = false) {
+    const passcode = document.getElementById('passcode').value.trim();
+    const user = document.getElementById('username').value.trim();
+    
+    // ... (ส่วนตรวจสอบค่าว่าง) ...
 
-            const loginBtn = document.getElementById('login-btn');
-            loginBtn.disabled = true;
+    const loginBtn = document.getElementById('login-btn');
+    loginBtn.disabled = true;
 
-            const payload = { action: 'LOGIN', passcode: passcode, user: user };
-            const result = await postData(payload);
+    const payload = { action: 'LOGIN', passcode: passcode, user: user };
+    const result = await postData(payload);
 
-            loginBtn.disabled = false; 
+    loginBtn.disabled = false; 
 
-            if (result.success) {
-                localStorage.setItem(LOGGED_IN_USER_KEY, user);
-                localStorage.setItem(LOGGED_IN_PASSCODE_KEY, passcode);
-                
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('app-screen').style.display = 'block';
-                
-                // แก้ไข: แสดงชื่อบัญชีและชื่อผู้ใช้ที่ล็อกอินอยู่
-                document.getElementById('account-name-display').innerHTML = `
-                    <span>${result.accountName}</span>
-                    <span id="user-greeting-display">สวัสดี, คุณ ${result.user}</span>
-                `;
+    if (result.success) {
+        // ... (ส่วน Login สำเร็จเหมือนเดิม) ...
+        // ...
+        
+        showNotification('เข้าสู่ระบบสำเร็จ', 'success');
+        loadAllData();
+        return true;
+    } else {
+        // --- ส่วนที่แก้ไขปัญหาชื่อซ้ำ ---
+        if (isAuto && result.message && result.message.includes('มีชื่อนี้กำลังใช้งานอยู่ในระบบแล้ว')) {
+             // 1. ถ้า Auto-login ล้มเหลวเพราะชื่อซ้ำ: ให้ลอง Logout ตัวเองแบบเงียบๆ ก่อน
+             await postData({ action: 'LOGOUT', user: user });
+             
+             // 2. ล้างข้อมูลใน Local Storage และสั่งโหลดชื่อบัญชี
+             localStorage.removeItem(LOGGED_IN_USER_KEY);
+             localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
+             await loadAccountName(); 
 
-                document.getElementById('logout-btn').style.display = 'inline';
-                
-                showNotification('เข้าสู่ระบบสำเร็จ', 'success');
-                loadAllData();
-                return true;
-            } else {
-                if (result.message && result.message.includes('มีชื่อนี้แล้ว')) {
-                     showNotification(result.message, 'error');
-                } else {
-                     showNotification(`เข้าสู่ระบบล้มเหลว: ${result.message || 'รหัสผ่านไม่ถูกต้อง'}`, 'error');
-                }
-                
-                if (isAuto) {
-                    localStorage.removeItem(LOGGED_IN_USER_KEY);
-                    localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
-                    loadAccountName(); // โหลดชื่อบัญชีหลักกลับมาแสดง
-                }
-                return false;
-            }
+             // 3. แจ้งให้ผู้ใช้ล็อกอินอีกครั้ง (เพื่อเริ่มกระบวนการ login ใหม่แบบ Manual)
+             showNotification(`เซสชันหมดอายุ: กรุณาล็อกอินอีกครั้ง`, 'info', 5000);
+             
+             // 4. บังคับให้แสดงหน้า Login
+             document.getElementById('login-screen').style.display = 'block';
+             document.getElementById('app-screen').style.display = 'none';
+             
+        } else {
+             // กรณี Login ล้มเหลวปกติ (รหัสผ่านผิด หรือ ชื่อซ้ำตอน Manual Login)
+             if (result.message && result.message.includes('มีชื่อนี้กำลังใช้งานอยู่ในระบบแล้ว')) {
+                  showNotification(`ไม่สามารถเข้าได้: ชื่อ ${user} กำลังใช้งานอยู่`, 'error');
+             } else {
+                  showNotification(`เข้าสู่ระบบล้มเหลว: ${result.message || 'รหัสผ่านไม่ถูกต้อง'}`, 'error');
+             }
+
+             if (isAuto) {
+                 localStorage.removeItem(LOGGED_IN_USER_KEY);
+                 localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
+                 await loadAccountName(); 
+             }
         }
+        // --- สิ้นสุดส่วนที่แก้ไข ---
+        return false;
+    }
+}
 
         async function logout() {
             const user = localStorage.getItem(LOGGED_IN_USER_KEY);
@@ -767,4 +758,5 @@
     </script>
 </body>
 </html>
+
 
