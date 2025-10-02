@@ -3,379 +3,763 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บัญชีรายรับ-รายจ่าย (Google Sheets Backend)</title>
+    <title>Pool Villa Budget App</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-        .header { text-align: center; margin-bottom: 20px; }
-        .balance { font-size: 1.5em; font-weight: bold; padding: 10px; border: 2px solid #3498db; border-radius: 5px; margin-bottom: 20px; background-color: #eaf6ff; }
-        .transaction-form, .estimate-form { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
-        .transaction-list, .estimate-list { margin-top: 15px; }
-        .transaction-item, .estimate-item { 
-            display: grid; 
-            grid-template-columns: 2fr 1fr 1.5fr 0.5fr; 
-            gap: 10px; 
-            padding: 8px 0; 
-            border-bottom: 1px dotted #eee; 
-            align-items: center;
+        /* BASE & MOBILE-FIRST STYLES */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
-        .income { color: green; font-weight: bold; }
-        .expense { color: red; font-weight: bold; }
-        .estimate { color: orange; }
-        .log-section { margin-top: 30px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
-        .log-section ul { list-style: none; padding: 0; }
-        .log-section li { margin-bottom: 5px; font-size: 0.9em; border-bottom: 1px dotted #ccc; padding-bottom: 3px;}
+
+        .container {
+            width: 100%;
+            max-width: 600px; /* จำกัดความกว้างสำหรับมือถือ */
+            margin: 0 auto;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        /* HEADER & STATUS BAR */
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        #current-datetime {
+            font-size: 0.85em;
+            opacity: 0.8;
+            text-align: right;
+        }
+
+        /* LOGIN SCREEN STYLES */
+        #login-screen {
+            padding: 40px 15px;
+            text-align: center;
+        }
+        .login-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        
+        /* BUTTON STYLES (Modern & Mobile-friendly) */
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, opacity 0.3s;
+            margin-top: 10px;
+        }
+        .btn-login {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-login:hover:not(:disabled) {
+            background-color: #218838;
+        }
+        .btn-action {
+            background-color: #007bff;
+            color: white;
+            margin-bottom: 15px;
+        }
+        .btn-action:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #5a6268;
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* MAIN CONTENT AREA */
+        .content-section {
+            background-color: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+        }
+
+        /* NAVIGATION TABS (Mobile-friendly Grid) */
+        .tab-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 2 ปุ่มต่อแถว */
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 15px;
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            background-color: white;
+            color: #007bff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .tab-button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        /* FORM LAYOUT (Simplified for Mobile) */
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+        }
+        .form-row label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .form-row input[type="number"],
+        .form-row input[type="text"] {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        /* TABLE STYLES (Mobile-friendly) */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .data-table th, .data-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .data-table th {
+            background-color: #e9ecef;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        /* ALERT/TOAST NOTIFICATION (Stylish) */
+        #notification {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 2000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .success { background-color: #28a745; }
+        .error { background-color: #dc3545; }
+        .info { background-color: #ffc107; color: #333; }
+        .show { opacity: 1; display: block; }
+
+        /* FOOTER & LOGOUT */
+        footer {
+            text-align: center;
+            padding: 15px;
+            margin-top: auto;
+            color: #888;
+            font-size: 0.8em;
+        }
+        #logout-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 10px;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        #logout-btn:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
-    <div id="auth-screen" style="text-align: center;">
-        <h2>🔐 เข้าสู่บัญชี: <span id="account-name-display">กำลังโหลด...</span></h2>
-        <p>รหัสเข้าชม (6 หลัก): <input type="password" id="passcode" maxlength="6" style="width: 100px;"></p>
-        <p>ชื่อของคุณ: <input type="text" id="username" placeholder="กรอกชื่อของคุณ"></p>
-        <button onclick="login()">เข้าสู่ระบบ</button>
+
+    <div id="notification"></div>
+
+    <header>
+        <div>
+            <span id="account-name-display">กำลังโหลด...</span>
+            <button id="logout-btn" style="display: none;">ออกจากระบบ</button>
+        </div>
+        <div id="current-datetime"></div>
+    </header>
+
+    <div class="container">
+
+        <section id="login-screen">
+            <h2>เข้าสู่ระบบ</h2>
+            <input type="password" id="passcode" class="login-input" placeholder="รหัสผ่าน" required>
+            <input type="text" id="username" class="login-input" placeholder="ชื่อผู้ใช้งาน" required>
+            <button id="login-btn" class="btn-primary btn-login" onclick="login()">เข้าสู่ระบบ</button>
+        </section>
+
+        <section id="app-screen" style="display: none;">
+            
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="showTab('add')">เพิ่มรายการ</button>
+                <button class="tab-button" onclick="showTab('estimate')">รายการประเมินจ่ายล่วงหน้า</button>
+            </div>
+
+            <div id="add-tab" class="content-section">
+                <h2>เพิ่มรายการ รายรับ/รายจ่าย</h2>
+                
+                <div class="tab-buttons" style="margin-bottom: 15px;">
+                    <button id="btn-expense" class="tab-button active" data-type="EXPENSE">รายจ่าย</button>
+                    <button id="btn-income" class="tab-button" data-type="INCOME">รายรับ</button>
+                </div>
+
+                <div class="form-row">
+                    <label for="transaction-description">รายละเอียด</label>
+                    <input type="text" id="transaction-description" placeholder="ค่าอาหาร, ค่าเดินทาง, อื่นๆ" required>
+                </div>
+
+                <div class="form-row">
+                    <label for="transaction-amount">ยอดเงิน</label>
+                    <input type="number" id="transaction-amount" placeholder="0.00" required>
+                </div>
+
+                <button class="btn-primary btn-action" onclick="addTransaction()">บันทึกรายการ</button>
+            </div>
+
+            <div id="estimate-tab" class="content-section" style="display: none;">
+                <h2>รายการประเมินจ่ายล่วงหน้า</h2>
+                <div style="font-weight: bold; margin-bottom: 15px;">ยอดรวมประเมิน: <span id="total-estimate-display">0.00</span></div>
+
+                <div id="estimate-list-container">
+                    </div>
+
+                <div class="content-section" style="margin-top: 15px;">
+                    <h3>เพิ่มรายการประเมิน</h3>
+                    
+                    <div class="form-row">
+                        <label for="estimate-description">รายละเอียดประเมิน</label>
+                        <input type="text" id="estimate-description" placeholder="ค่ามัดจำ, ค่าเข้าชม" required>
+                    </div>
+
+                    <div class="form-row">
+                        <label for="estimate-amount">ยอดเงินประเมิน</label>
+                        <input type="number" id="estimate-amount" placeholder="0.00" required>
+                    </div>
+
+                    <button class="btn-primary btn-action" onclick="addEstimate()">เพิ่มรายการประเมิน</button>
+                </div>
+            </div>
+
+            <div id="data-display-section">
+                </div>
+
+            <div class="content-section">
+                <h3>ประวัติการดำเนินการล่าสุด</h3>
+                <pre id="log-display"></pre>
+            </div>
+            
+            <div class="content-section">
+                <h3>ผู้เข้าชมทั้งหมด</h3>
+                <p style="font-size: 1.5em; font-weight: bold;" id="visitor-count">กำลังโหลด...</p>
+            </div>
+
+        </section>
     </div>
 
-    <div id="app-container" class="container" style="display: none;">
-        <div class="header">
-            <h1 id="current-account-name"></h1>
-            <p>ผู้ใช้งานปัจจุบัน: <span id="current-user"></span></p>
-            <p>ผู้เข้าชมทั้งหมด: <span id="viewer-list"></span></p>
-        </div>
-
-        <div class="balance">
-            ยอดคงเหลือปัจจุบัน: <span id="current-balance">0.00</span> บาท
-        </div>
-
-        <div class="transaction-form">
-            <h3>เพิ่มรายการ รายรับ/รายจ่าย</h3>
-            <input type="number" id="amount" placeholder="ยอดเงิน" style="width: 100px;">
-            <input type="text" id="description" placeholder="รายละเอียด">
-            <select id="type">
-                <option value="income">รายรับ</option>
-                <option value="expense">รายจ่าย</option>
-            </select>
-            <button onclick="addTransaction()">บันทึกรายการ</button>
-        </div>
-
-        <div class="estimate-form">
-            <h3>ประเมินรายจ่ายล่วงหน้า</h3>
-            <input type="number" id="estimate-amount" placeholder="ยอดเงินประเมิน" style="width: 100px;">
-            <input type="text" id="estimate-desc" placeholder="รายละเอียดประเมิน">
-            <button onclick="addEstimate()">เพิ่มรายการประเมิน</button>
-        </div>
-
-        <div style="display: flex; gap: 20px;">
-            <div style="flex: 1;">
-                <h2>รายการบัญชี (รายรับ-รายจ่ายจริง)</h2>
-                <div class="transaction-list" id="transaction-list"></div>
-            </div>
-            <div style="flex: 1;">
-                <h2>รายการประเมิน (จากงบที่เหลือ)</h2>
-                <div class="estimate-list" id="estimate-list"></div>
-            </div>
-        </div>
-
-        <div class="log-section">
-            <h3>ประวัติการดำเนินการ</h3>
-            <ul id="action-log"></ul>
-        </div>
-
-    </div>
+    <footer>
+        <p>Pool Villa Budget App | Powered by Google Apps Script & GitHub Pages</p>
+    </footer>
 
     <script>
-        // ====================================================================
-        // *** จุดที่ 2: แก้ไข Web App URL ของคุณที่นี่ ***
-        // ====================================================================
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbymObtM2nSIPpgYAZeodvB6pMM7VX5G_fIjod9Zha5sexc21XnA0-0d158A1FjBPEB7Qg/exec'; 
-        // ====================================================================
-        
-        let transactions = [];
-        let estimates = [];
-        let logs = [];
-        let currentUser = '';
-        let accountName = '';
+        // *** 1. CONFIGURATION & STATE ***
+        // *** ต้องเปลี่ยน WEB_APP_URL เป็น URL Deployment ใหม่ล่าสุดของคุณ ***
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwbfwSynu6KfPYZztiFWnMQBnonSpIYrZP6asflgKc9rp_mS2nf3j-CG5YNBZEO1SLChg/exec'; 
+        let currentTab = 'add';
+        let transactionType = 'EXPENSE'; // Default type
+        const LOGGED_IN_USER_KEY = 'budgetAppUser'; // Key สำหรับเก็บชื่อผู้ใช้
+        const LOGGED_IN_PASSCODE_KEY = 'budgetAppPasscode'; // Key สำหรับเก็บรหัสผ่าน
 
-        // ------------------------------------------------
-        // API COMMUNICATION FUNCTIONS (ปรับปรุงล่าสุด)
-        // ------------------------------------------------
-// ใน index.html (ส่วน JavaScript)
+        // *** 2. CORE UTILITY FUNCTIONS ***
 
-// ฟังก์ชันนี้ถูกใช้สำหรับคำขอที่ต้องส่งข้อมูล (LOGIN, ADD, DELETE)
-async function postData(payload) {
-    // แปลง Object Payload เป็น URL Query String (เช่น: action=LOGIN&passcode=123456&user=test)
-    const queryString = Object.keys(payload)
-        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
-        .join('&');
-
-    const get_url = WEB_APP_URL + '?' + queryString;
-    
-    console.log("DEBUG: Attempting to GET (as POST) to URL:", get_url); 
-    
-    try {
-        const response = await fetch(get_url, {
-            method: 'GET' // ใช้ GET แทน POST เพื่อหลีกเลี่ยง CORS
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP Error! Status: ${response.status}`);
-        }
-        
-        const responseText = await response.text();
-        
-        try {
-            const result = JSON.parse(responseText);
-            return result;
-        } catch (e) {
-            console.error("Failed to parse JSON:", responseText);
-            throw new Error('Server returned invalid data format.');
-        }
-
-    } catch (error) {
-        console.error("Fetch/Server Connection Error:", error);
-        return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
-    }
-}
-
-        async function refreshData() {
-            // ป้องกันการ refresh ก่อนที่ UI จะพร้อม
-            if (!document.getElementById('app-container').style.display === 'block') return;
-
-            const result = await postData({ action: 'GET_DATA' });
-            if (result.success) {
-                // Mapping ข้อมูล
-                transactions = result.transactions.map(r => ({
-                    timestamp: r[0], user: r[1], type: r[2], amount: parseFloat(r[3]), description: r[4]
-                }));
-                estimates = result.estimates.map(r => ({
-                    timestamp: r[0], user: r[1], amount: parseFloat(r[2]), description: r[3]
-                }));
-                logs = result.logs.map(r => ({
-                    timestamp: r[0], user: r[1], action: r[2]
-                }));
-                updateDisplay();
-            } else {
-                alert('ดึงข้อมูลไม่สำเร็จ: ' + result.message);
-            }
-        }
-
-        // ------------------------------------------------
-        // LOGIN & INITIAL LOAD
-        // ------------------------------------------------
-
-        async function login() {
-            const passcode = document.getElementById('passcode').value;
-            const user = document.getElementById('username').value.trim();
-
-            if (user === '') {
-                return alert('กรุณาใส่ชื่อของคุณ');
-            }
+        // Utility: Show stylish notification (Toast)
+        function showNotification(message, type = 'info') {
+            const notif = document.getElementById('notification');
+            notif.className = ''; // Clear existing classes
+            notif.classList.add(type, 'show');
+            notif.textContent = message;
             
-            const result = await postData({ action: 'LOGIN', passcode: passcode, user: user });
+            // Auto hide
+            setTimeout(() => {
+                notif.classList.remove('show');
+                setTimeout(() => {
+                    notif.style.display = 'none';
+                }, 500); // Wait for transition
+            }, 3000);
+            notif.style.display = 'block';
+        }
 
-            if (result.success) {
-                currentUser = user;
-                accountName = result.accountName;
-                document.getElementById('current-user').textContent = user;
-                document.getElementById('current-account-name').textContent = accountName;
+        // Utility: Update current date/time display
+        function updateDateTime() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('th-TH', { 
+                year: 'numeric', month: 'short', day: 'numeric' 
+            });
+            const timeStr = now.toLocaleTimeString('th-TH', { 
+                hour: '2-digit', minute: '2-digit' 
+            });
+            document.getElementById('current-datetime').textContent = `${dateStr} ${timeStr}`;
+        }
+        setInterval(updateDateTime, 1000); // Update every second
+        updateDateTime(); // Initial call
+
+        // Core API Call (Uses GET method for all data exchange)
+        async function postData(payload) {
+            // Disable all action buttons during request
+            document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
+            
+            const queryString = Object.keys(payload)
+                .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
+                .join('&');
+
+            const get_url = WEB_APP_URL + '?' + queryString;
+            
+            try {
+                const response = await fetch(get_url, {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
                 
-                document.getElementById('auth-screen').style.display = 'none';
-                document.getElementById('app-container').style.display = 'block';
-                await refreshData();
-            } else {
-                alert('การเข้าสู่ระบบล้มเหลว: ' + result.message);
+                const responseText = await response.text();
+                
+                try {
+                    const result = JSON.parse(responseText);
+                    return result;
+                } catch (e) {
+                    console.error("Failed to parse JSON:", responseText);
+                    throw new Error('Server returned invalid data format.');
+                }
+
+            } catch (error) {
+                console.error("Fetch/Server Connection Error:", error);
+                return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
+            } finally {
+                // Re-enable all action buttons
+                document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = false);
             }
         }
+        
+        // *** 3. UI MANAGEMENT ***
 
-        // โหลดชื่อบัญชีมาแสดงก่อน
-async function loadAccountName() {
-    console.log("DEBUG: Starting initial load.");
-    
-    // สร้าง URL สำหรับ GET request
-    const get_url = WEB_APP_URL + '?action=LOGIN&passcode=000000&user=System';
-    
-    try {
-        console.log("DEBUG: Attempting to GET to URL:", get_url);
-        const response = await fetch(get_url, {
-            method: 'GET' // ใช้ GET
-            // ไม่ต้องใส่ headers หรือ body
+        // Switch between Add Tab and Estimate Tab
+        function showTab(tabName) {
+            document.getElementById('add-tab').style.display = tabName === 'add' ? 'block' : 'none';
+            document.getElementById('estimate-tab').style.display = tabName === 'estimate' ? 'block' : 'none';
+            
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tab-buttons button[onclick="showTab('${tabName}')"]`).classList.add('active');
+            
+            currentTab = tabName;
+        }
+
+        // Switch between Expense/Income Type
+        document.getElementById('btn-expense').addEventListener('click', function() {
+            document.getElementById('btn-expense').classList.add('active');
+            document.getElementById('btn-income').classList.remove('active');
+            transactionType = 'EXPENSE';
         });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP Error! Status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success && result.accountName) {
-            document.getElementById('account-name-display').textContent = result.accountName;
-        } else {
-            document.getElementById('account-name-display').textContent = result.message || 'Error: Check Apps Script URL';
-        }
-        
-    } catch (error) {
-        console.error("Fetch/Server Connection Error:", error);
-        document.getElementById('account-name-display').textContent = 'การเชื่อมต่อ Server ล้มเหลว';
-    }
-}
-        // ------------------------------------------------
-        // DISPLAY & DATA MODIFICATION
-        // ------------------------------------------------
+        document.getElementById('btn-income').addEventListener('click', function() {
+            document.getElementById('btn-income').classList.add('active');
+            document.getElementById('btn-expense').classList.remove('active');
+            transactionType = 'INCOME';
+        });
 
-        function updateDisplay() {
-            // 1. คำนวณยอดคงเหลือ
-            let balance = transactions.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
-            document.getElementById('current-balance').textContent = balance.toFixed(2);
+        // *** 4. LOGIN & AUTHENTICATION ***
 
-            // 2. แสดงรายการบัญชี
-            const tList = document.getElementById('transaction-list');
-            tList.innerHTML = '';
-            transactions.forEach((t, index) => {
-                const item = document.createElement('div');
-                item.className = 'transaction-item ' + (t.type);
-                item.innerHTML = `
-                    <span>${t.description}</span>
-                    <span>${t.type === 'income' ? '+' : '-'} ${t.amount.toFixed(2)} บาท</span>
-                    <span>โดย: ${t.user}</span>
-                    <button onclick="deleteTransaction(${index})" style="background: none; border: none; color: red; cursor: pointer;">ลบ</button>
-                `;
-                tList.appendChild(item);
-            });
-
-            // 3. แสดงรายการประเมิน
-            const eList = document.getElementById('estimate-list');
-            eList.innerHTML = '';
-            estimates.forEach((e, index) => {
-                const item = document.createElement('div');
-                item.className = 'estimate-item estimate';
-                item.innerHTML = `
-                    <span>(ประเมิน) ${e.description}</span>
-                    <span>${e.amount.toFixed(2)} บาท</span>
-                    <span>โดย: ${e.user}</span>
-                    <button onclick="forwardToTransaction(${index})" style="background: none; border: none; color: blue; cursor: pointer;">เป็นรายจ่ายจริง</button>
-                    <button onclick="deleteEstimate(${index})" style="background: none; border: none; color: red; cursor: pointer;">ลบ</button>
-                `;
-                eList.appendChild(item);
-            });
-
-            // 4. อัพเดท Log และผู้เข้าชม
-            updateActionLog();
-        }
-
-        function updateActionLog() {
-            const aLog = document.getElementById('action-log');
-            aLog.innerHTML = '';
+        // Check for stored credentials on load
+        function checkAutoLogin() {
+            const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
+            const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
             
-            const viewerNames = [...new Set(logs.filter(log => log.action === 'เข้าสู่ระบบ').map(log => log.user))].join(', ');
-            document.getElementById('viewer-list').textContent = viewerNames;
-            
-            logs.slice().reverse().forEach(log => {
-                const li = document.createElement('li');
-                li.textContent = `[${log.timestamp.split(',')[0]}] ${log.user} : ${log.action}`;
-                aLog.appendChild(li);
-            });
+            if (storedUser && storedPasscode) {
+                document.getElementById('username').value = storedUser;
+                document.getElementById('passcode').value = storedPasscode;
+                login(true); // Attempt silent auto-login
+            } else {
+                loadAccountName(); // Load name using System user
+            }
+        }
+        
+        // Load account name using a 'System' GET request
+        async function loadAccountName() {
+            document.getElementById('account-name-display').textContent = 'กำลังโหลด...';
+            const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
+            const result = await postData(payload);
+
+            if (result.success && result.accountName) {
+                document.getElementById('account-name-display').textContent = `เข้าสู่บัญชี: ${result.accountName}`;
+            } else {
+                document.getElementById('account-name-display').textContent = `เข้าสู่บัญชี: ${result.message || 'Error: Check Apps Script'}`;
+            }
         }
 
+        // User Login function
+        async function login(isAuto = false) {
+            const passcode = document.getElementById('passcode').value.trim();
+            const user = document.getElementById('username').value.trim();
+            
+            if (!passcode || !user) {
+                showNotification('กรุณากรอกรหัสผ่านและชื่อผู้ใช้งาน', 'info');
+                return;
+            }
+
+            // Disable login button to prevent double-click
+            const loginBtn = document.getElementById('login-btn');
+            loginBtn.disabled = true;
+
+            const payload = { action: 'LOGIN', passcode: passcode, user: user };
+            const result = await postData(payload);
+
+            loginBtn.disabled = false; // Re-enable button
+
+            if (result.success) {
+                // Store credentials for auto-login
+                localStorage.setItem(LOGGED_IN_USER_KEY, user);
+                localStorage.setItem(LOGGED_IN_PASSCODE_KEY, passcode);
+                
+                // Switch UI
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-screen').style.display = 'block';
+                document.getElementById('account-name-display').textContent = `สวัสดี, คุณ ${result.user}`;
+                document.getElementById('logout-btn').style.display = 'inline';
+                
+                showNotification('เข้าสู่ระบบสำเร็จ', 'success');
+                // Load all data after successful login
+                loadAllData();
+            } else {
+                // Custom error for name duplication (assuming backend handles this)
+                if (result.message && result.message.includes('มีชื่อนี้แล้ว')) {
+                     showNotification(result.message, 'error');
+                } else {
+                     showNotification(`เข้าสู่ระบบล้มเหลว: ${result.message || 'รหัสผ่านไม่ถูกต้อง'}`, 'error');
+                }
+                
+                // If auto-login fails, clear stored credentials
+                if (isAuto) {
+                    localStorage.removeItem(LOGGED_IN_USER_KEY);
+                    localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
+                    // Force the screen back to login if auto-login fails
+                    document.getElementById('login-screen').style.display = 'block';
+                    document.getElementById('app-screen').style.display = 'none';
+                }
+            }
+        }
+
+		function logout() {
+			const user = localStorage.getItem(LOGGED_IN_USER_KEY);
+    
+		// 1. ส่งคำขอ LOGOUT ไปยัง Apps Script
+			postData({ action: 'LOGOUT', user: user }).then(() => {
+        // ไม่ต้องสนใจผลลัพธ์ แต่ให้ทำขั้นตอนต่อไป
+        
+			// 2. ลบข้อมูลใน Local Storage
+				localStorage.removeItem(LOGGED_IN_USER_KEY);
+				localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
+        
+			// 3. ปรับ UI
+				document.getElementById('login-screen').style.display = 'block';
+				document.getElementById('app-screen').style.display = 'none';
+				document.getElementById('logout-btn').style.display = 'none';
+				loadAccountName(); // Reload system name
+				showNotification('ออกจากระบบแล้ว', 'info');
+			});
+		}
+		document.getElementById('logout-btn').addEventListener('click', logout);
+
+        // *** 5. DATA ACTIONS ***
+        
+        // Add Transaction (Income/Expense)
         async function addTransaction() {
-            if (!currentUser) return alert("กรุณาล็อกอินก่อน");
+            const description = document.getElementById('transaction-description').value.trim();
+            const amount = parseFloat(document.getElementById('transaction-amount').value);
+            const user = localStorage.getItem(LOGGED_IN_USER_KEY);
 
-            const amount = parseFloat(document.getElementById('amount').value);
-            const description = document.getElementById('description').value.trim();
-            const type = document.getElementById('type').value;
-
-            if (isNaN(amount) || amount <= 0 || description === '') {
-                return alert("กรุณากรอกยอดเงินและรายละเอียดให้ถูกต้อง");
+            if (!description || isNaN(amount) || amount <= 0) {
+                showNotification('กรุณากรอกรายละเอียดและยอดเงินที่ถูกต้อง', 'info');
+                return;
             }
+
+            const payload = { 
+                action: 'ADD_TRANSACTION',
+                user: user,
+                type: transactionType, // 'EXPENSE' or 'INCOME'
+                description: description,
+                amount: amount
+            };
             
-            const result = await postData({ 
-                action: 'ADD_TRANSACTION', user: currentUser, type: type, amount: amount, description: description
-            });
+            // Disable button during operation
+            const btn = document.querySelector('.btn-primary.btn-action[onclick="addTransaction()"]');
+            btn.disabled = true;
+
+            const result = await postData(payload);
+
+            btn.disabled = false; // Re-enable button
 
             if (result.success) {
-                document.getElementById('amount').value = '';
-                document.getElementById('description').value = '';
-                await refreshData();
+                showNotification('บันทึกรายการสำเร็จ', 'success');
+                document.getElementById('transaction-description').value = '';
+                document.getElementById('transaction-amount').value = '';
+                loadAllData(); // Refresh data display
             } else {
-                 alert('บันทึกรายการไม่สำเร็จ: ' + result.message);
-            }
-        }
-
-        async function deleteTransaction(index) {
-            if (!confirm(`คุณต้องการลบรายการนี้ใช่หรือไม่?`)) return;
-            
-            const result = await postData({ 
-                action: 'DELETE_TRANSACTION', user: currentUser, rowIndex: index
-            });
-
-            if (result.success) {
-                await refreshData();
-            } else {
-                 alert('ลบรายการไม่สำเร็จ: ' + result.message);
+                showNotification(`บันทึกรายการล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
         }
         
+        // Add Estimate
         async function addEstimate() {
-            if (!currentUser) return alert("กรุณาล็อกอินก่อน");
-
+            const description = document.getElementById('estimate-description').value.trim();
             const amount = parseFloat(document.getElementById('estimate-amount').value);
-            const description = document.getElementById('estimate-desc').value.trim();
+            const user = localStorage.getItem(LOGGED_IN_USER_KEY);
 
-            if (isNaN(amount) || amount <= 0 || description === '') {
-                return alert("กรุณากรอกยอดเงินประเมินและรายละเอียดให้ถูกต้อง");
+            if (!description || isNaN(amount) || amount <= 0) {
+                showNotification('กรุณากรอกรายละเอียดและยอดเงินประเมินที่ถูกต้อง', 'info');
+                return;
             }
 
-            const result = await postData({ 
-                action: 'ADD_ESTIMATE', user: currentUser, amount: amount, description: description
-            });
+            const payload = { 
+                action: 'ADD_ESTIMATE',
+                user: user,
+                description: description,
+                amount: amount
+            };
+            
+            const btn = document.querySelector('.btn-primary.btn-action[onclick="addEstimate()"]');
+            btn.disabled = true;
+            
+            const result = await postData(payload);
 
+            btn.disabled = false;
+            
             if (result.success) {
+                showNotification('เพิ่มรายการประเมินสำเร็จ', 'success');
+                document.getElementById('estimate-description').value = '';
                 document.getElementById('estimate-amount').value = '';
-                document.getElementById('estimate-desc').value = '';
-                await refreshData();
+                loadAllData(); // Refresh data display
             } else {
-                 alert('บันทึกรายการประเมินไม่สำเร็จ: ' + result.message);
+                showNotification(`เพิ่มรายการประเมินล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
         }
 
-        async function deleteEstimate(index) {
-            if (!confirm(`คุณต้องการลบรายการประเมินนี้ใช่หรือไม่?`)) return;
-            
-            const result = await postData({ 
-                action: 'DELETE_ESTIMATE', user: currentUser, rowIndex: index
-            });
+        // *** 6. DATA DISPLAY ***
+        
+        // Load all data (Transactions, Estimates, Logs, Visitor Count)
+        async function loadAllData() {
+            const payload = { action: 'GET_DATA' };
+            const result = await postData(payload);
 
             if (result.success) {
-                await refreshData();
+                renderTransactionData(result.transactions);
+                renderEstimateData(result.estimates);
+                renderLogs(result.logs);
+                document.getElementById('visitor-count').textContent = result.visitorCount || 0;
             } else {
-                 alert('ลบรายการประเมินไม่สำเร็จ: ' + result.message);
-            }
-        }
-
-        async function forwardToTransaction(index) {
-            if (!currentUser) return alert("กรุณาล็อกอินก่อน");
-            
-            if (!confirm(`ยืนยันการเปลี่ยนรายการประเมินเป็นรายจ่ายจริงใช่หรือไม่?`)) return;
-
-            const result = await postData({ 
-                action: 'FORWARD_ESTIMATE', user: currentUser, rowIndex: index
-            });
-
-            if (result.success) {
-                await refreshData();
-            } else {
-                 alert('แปลงรายการไม่สำเร็จ: ' + result.message);
+                showNotification(`ไม่สามารถโหลดข้อมูลได้: ${result.message || 'ข้อผิดพลาด'}`, 'error');
+                // Clear displays on failure
+                document.getElementById('data-display-section').innerHTML = '';
+                document.getElementById('log-display').textContent = 'ไม่สามารถโหลดประวัติได้';
+                document.getElementById('visitor-count').textContent = 'N/A';
             }
         }
         
-        document.addEventListener('DOMContentLoaded', loadAccountName);
+        // Render Transaction/Estimate List for Mobile
+        function renderTransactionData(transactions) {
+            let html = `
+                <div class="content-section">
+                    <h3>รายการบัญชี (รายรับ-รายจ่ายจริง)</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50%;">รายการ</th>
+                                <th style="width: 30%; text-align: right;">ยอดเงิน</th>
+                                <th style="width: 20%; text-align: center;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            transactions.forEach((row, index) => {
+                const amount = parseFloat(row.Amount);
+                const isExpense = row.Type === 'EXPENSE';
+                const amountColor = isExpense ? 'color: #dc3545;' : 'color: #28a745;';
+                
+                // Data for display: Row Index in Sheet (index 1-based, plus 1 for header)
+                const sheetRowIndex = index + 2; 
+
+                html += `
+                    <tr>
+                        <td>${row.Description}</td>
+                        <td style="text-align: right; ${amountColor}">${amount.toLocaleString('th-TH')}</td>
+                        <td style="text-align: center;">
+                            <button class="btn-secondary" style="padding: 5px 8px; font-size: 0.8em;" onclick="deleteTransaction('${row.Type}', ${sheetRowIndex})">ลบ</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `</tbody></table></div>`;
+            
+            // Render Estimate section right after Transactions
+            const estimateList = document.getElementById('data-display-section');
+            estimateList.innerHTML = html;
+        }
+
+        function renderEstimateData(estimates) {
+             let html = `
+                <div class="content-section" style="margin-top: 20px;">
+                    <h3>รายการประเมินจ่ายล่วงหน้า (จากงบที่เหลือ)</h3>
+            `;
+            
+            let totalEstimate = 0;
+            
+            if (estimates.length > 0) {
+                 html += `<table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50%;">รายการ</th>
+                                    <th style="width: 30%; text-align: right;">ยอดเงิน</th>
+                                    <th style="width: 20%; text-align: center;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                
+                estimates.forEach((row, index) => {
+                    const amount = parseFloat(row.Amount);
+                    totalEstimate += amount;
+                    // Data for display: Row Index in Sheet (index 1-based, plus 1 for header)
+                    const sheetRowIndex = index + 2; 
+
+                    html += `
+                        <tr>
+                            <td>${row.Description}</td>
+                            <td style="text-align: right;">${amount.toLocaleString('th-TH')}</td>
+                            <td style="text-align: center;">
+                                <button class="btn-secondary" style="padding: 5px 8px; font-size: 0.8em;" onclick="deleteEstimate(${sheetRowIndex})">ลบ</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `</tbody></table>`;
+            } else {
+                 html += `<p style="text-align: center; color: #888;">ไม่มีรายการประเมิน</p>`;
+            }
+            
+            html += `</div>`;
+            
+            // Append the Estimate HTML to the display section
+            const displaySection = document.getElementById('data-display-section');
+            displaySection.innerHTML += html;
+            
+            // Update total estimate display
+            document.getElementById('total-estimate-display').textContent = totalEstimate.toLocaleString('th-TH', { 
+                minimumFractionDigits: 2, maximumFractionDigits: 2 
+            });
+        }
+        
+        function renderLogs(logs) {
+            const logElement = document.getElementById('log-display');
+            if (logs.length > 0) {
+                // Display only the latest 10 logs
+                const latestLogs = logs.slice(-10).reverse();
+                logElement.textContent = latestLogs.map(log => 
+                    `[${log.Timestamp}] ${log.User}: ${log.Action}`
+                ).join('\n');
+            } else {
+                logElement.textContent = 'ไม่มีประวัติการดำเนินการ';
+            }
+        }
+        
+        // Delete Transaction
+        async function deleteTransaction(type, rowIndex) {
+            if (!confirm(`คุณต้องการลบรายการ ${type} ในแถวที่ ${rowIndex} นี้ใช่หรือไม่?`)) return;
+
+            const user = localStorage.getItem(LOGGED_IN_USER_KEY);
+            const action = type === 'EXPENSE' ? 'DELETE_TRANSACTION' : 'DELETE_TRANSACTION'; // ใช้ action เดียวกัน
+            
+            const payload = { 
+                action: action,
+                user: user,
+                rowIndex: rowIndex
+            };
+
+            const result = await postData(payload);
+            
+            if (result.success) {
+                showNotification('ลบรายการสำเร็จ', 'success');
+                loadAllData();
+            } else {
+                showNotification(`ลบรายการล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
+            }
+        }
+        
+        // Delete Estimate
+        async function deleteEstimate(rowIndex) {
+            if (!confirm(`คุณต้องการลบรายการประเมินในแถวที่ ${rowIndex} นี้ใช่หรือไม่?`)) return;
+
+            const user = localStorage.getItem(LOGGED_IN_USER_KEY);
+            
+            const payload = { 
+                action: 'DELETE_ESTIMATE',
+                user: user,
+                rowIndex: rowIndex
+            };
+
+            const result = await postData(payload);
+            
+            if (result.success) {
+                showNotification('ลบรายการประเมินสำเร็จ', 'success');
+                loadAllData();
+            } else {
+                showNotification(`ลบรายการประเมินล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
+            }
+        }
+
+        // Initialize on load
+        window.onload = checkAutoLogin;
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
