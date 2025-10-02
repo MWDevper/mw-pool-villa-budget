@@ -98,8 +98,8 @@
         // ------------------------------------------------
         // API COMMUNICATION FUNCTIONS (ปรับปรุงล่าสุด)
         // ------------------------------------------------
-
 async function postData(payload) {
+    console.log("DEBUG: Attempting to POST to URL:", WEB_APP_URL); // *** เพิ่มบรรทัดนี้ ***
         try {
             const response = await fetch(WEB_APP_URL, {
                 method: 'POST',
@@ -191,6 +191,7 @@ async function postData(payload) {
 
         // โหลดชื่อบัญชีมาแสดงก่อน
         async function loadAccountName() {
+            console.log("DEBUG: Starting initial load."); // *** เพิ่มบรรทัดนี้ ***
             const result = await postData({ action: 'LOGIN', passcode: '000000', user: 'System' }); 
             
             if (result.success && result.accountName) {
@@ -353,6 +354,7 @@ async function postData(payload) {
     </script>
 </body>
 </html>
+
 
 
 
