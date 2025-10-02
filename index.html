@@ -86,7 +86,7 @@
         // ====================================================================
         // *** จุดที่ 2: แก้ไข Web App URL ของคุณที่นี่ ***
         // ====================================================================
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxRzRvdjPCLzUNM0b9NZ7yHGv-Ua8baeAPvx0GeRi0IJthUiDneb18FljDqmfTmV2yKhg/exec'; 
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbymObtM2nSIPpgYAZeodvB6pMM7VX5G_fIjod9Zha5sexc21XnA0-0d158A1FjBPEB7Qg/exec'; 
         // ====================================================================
         
         let transactions = [];
@@ -98,46 +98,43 @@
         // ------------------------------------------------
         // API COMMUNICATION FUNCTIONS (ปรับปรุงล่าสุด)
         // ------------------------------------------------
+// ใน index.html (ส่วน JavaScript)
+
+// ฟังก์ชันนี้ถูกใช้สำหรับคำขอที่ต้องส่งข้อมูล (LOGIN, ADD, DELETE)
 async function postData(payload) {
-    console.log("DEBUG: Attempting to POST to URL:", WEB_APP_URL); // *** เพิ่มบรรทัดนี้ ***
-        try {
-            const response = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json' 
-                },
-                body: JSON.stringify(payload)
-            });
+    // แปลง Object Payload เป็น URL Query String (เช่น: action=LOGIN&passcode=123456&user=test)
+    const queryString = Object.keys(payload)
+        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
+        .join('&');
 
-            // ตรวจสอบสถานะ HTTP (เช่น 200 OK)
-            if (!response.ok) {
-                // หาก HTTP Status ไม่ใช่ 200 (เช่น 404, 500) ให้ Throw Error ทันที
-                throw new Error(`HTTP Error! Status: ${response.status}`);
-            }
+    const get_url = WEB_APP_URL + '?' + queryString;
+    
+    console.log("DEBUG: Attempting to GET (as POST) to URL:", get_url); 
+    
+    try {
+        const response = await fetch(get_url, {
+            method: 'GET' // ใช้ GET แทน POST เพื่อหลีกเลี่ยง CORS
+        });
 
-            // *** การแก้ไขที่สำคัญ: ตรวจสอบ Body ก่อนแปลงเป็น JSON ***
-            const responseText = await response.text();
-            if (!responseText) {
-                // หาก Apps Script ทำงานเสร็จแต่ไม่มีการตอบกลับ (Empty Response)
-                return { success: false, message: 'Server responded with empty data.' };
-            }
-            
-            // ลองแปลงเป็น JSON
-            try {
-                const result = JSON.parse(responseText);
-                return result;
-            } catch (e) {
-                // หากแปลง JSON ไม่ได้ (เช่น ได้ HTML Error มา)
-                console.error("Failed to parse JSON:", responseText);
-                throw new Error('Server returned invalid data format.');
-            }
-            // ******************************************************
-
-        } catch (error) {
-            console.error("Fetch/Server Connection Error:", error);
-            return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
+        if (!response.ok) {
+            throw new Error(`HTTP Error! Status: ${response.status}`);
         }
+        
+        const responseText = await response.text();
+        
+        try {
+            const result = JSON.parse(responseText);
+            return result;
+        } catch (e) {
+            console.error("Failed to parse JSON:", responseText);
+            throw new Error('Server returned invalid data format.');
+        }
+
+    } catch (error) {
+        console.error("Fetch/Server Connection Error:", error);
+        return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
     }
+}
 
         async function refreshData() {
             // ป้องกันการ refresh ก่อนที่ UI จะพร้อม
@@ -373,6 +370,7 @@ async function loadAccountName() {
     </script>
 </body>
 </html>
+
 
 
 
