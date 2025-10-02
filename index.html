@@ -425,44 +425,51 @@
         // *** 4. LOGIN & AUTHENTICATION (แก้ไข Autologin/Refresh) ***
 
         // Load account name (Pool Villa) using a 'System' GET request
-        async function loadAccountName() {
-            document.getElementById('account-name-display').textContent = 'กำลังโหลดบัญชี...'; 
-            const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
-            // ใช้ fetch/postData ปกติ แต่ไม่ต้องแสดง Loading Toast
-            const result = await postData(payload); 
+// Load account name (Pool Villa) using a 'System' GET request
+async function loadAccountName() {
+    // 1. แสดงสถานะกำลังโหลด
+    document.getElementById('account-name-display').textContent = 'กำลังโหลดบัญชี...'; 
+    
+    // เราใช้ postData เพื่อจัดการ Loading UI แต่ payload ถูกออกแบบมาสำหรับ System Login
+    const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
+    
+    // Note: การใช้ postData ตรงนี้จะแสดง Loading Toast ด้วย
+    const result = await postData(payload); 
 
-            if (result.success && result.accountName) {
-                document.getElementById('account-name-display').textContent = `${result.accountName}`;
-            } else {
-                document.getElementById('account-name-display').textContent = `บัญชีหลัก: Error`;
-            }
-        }
+    if (result.success && result.accountName) {
+        document.getElementById('account-name-display').textContent = `${result.accountName}`;
+    } else {
+        document.getElementById('account-name-display').textContent = `บัญชีหลัก: Error`;
+    }
+}
 
         // Check for stored credentials on load
-        async function checkAutoLogin() { 
-            // 1. โหลดชื่อบัญชี Pool Villa (บัญชีหลัก) เสมอ
-            await loadAccountName(); 
-            
-            const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
-            const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
-            
-            if (storedUser && storedPasscode) {
-                document.getElementById('username').value = storedUser;
-                document.getElementById('passcode').value = storedPasscode;
-                
-                const loginSuccess = await login(true); 
-                
-                if (!loginSuccess) {
-                    // ถ้า Auto-login ล้มเหลว ให้แสดงหน้า Login
-                    document.getElementById('login-screen').style.display = 'block';
-                    document.getElementById('app-screen').style.display = 'none';
-                }
-            } else {
-                // ถ้าไม่มีข้อมูลใน Local Storage ให้แสดงหน้า Login
-                document.getElementById('login-screen').style.display = 'block';
-                document.getElementById('app-screen').style.display = 'none';
-            }
+// Check for stored credentials on load
+async function checkAutoLogin() { 
+    // 1. โหลดชื่อบัญชี Pool Villa (บัญชีหลัก) เสมอ และต้องรอให้เสร็จ (AWAIΤ)
+    await loadAccountName(); 
+    
+    const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
+    const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
+    
+    if (storedUser && storedPasscode) {
+        document.getElementById('username').value = storedUser;
+        document.getElementById('passcode').value = storedPasscode;
+        
+        // 2. พยายาม Auto-login และต้องรอผลลัพธ์ (AWAIΤ)
+        const loginSuccess = await login(true); 
+        
+        if (!loginSuccess) {
+            // ถ้า Auto-login ล้มเหลว ให้แสดงหน้า Login
+            document.getElementById('login-screen').style.display = 'block';
+            document.getElementById('app-screen').style.display = 'none';
         }
+    } else {
+        // 3. ถ้าไม่มีข้อมูล Local Storage ให้แสดงหน้า Login
+        document.getElementById('login-screen').style.display = 'block';
+        document.getElementById('app-screen').style.display = 'none';
+    }
+}
         
         // User Login function
         async function login(isAuto = false) {
@@ -752,3 +759,4 @@
     </script>
 </body>
 </html>
+
