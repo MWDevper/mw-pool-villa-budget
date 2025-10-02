@@ -11,11 +11,20 @@
         .balance { font-size: 1.5em; font-weight: bold; padding: 10px; border: 2px solid #3498db; border-radius: 5px; margin-bottom: 20px; background-color: #eaf6ff; }
         .transaction-form, .estimate-form { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
         .transaction-list, .estimate-list { margin-top: 15px; }
-        .transaction-item, .estimate-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted #eee; }
+        .transaction-item, .estimate-item { 
+            display: grid; 
+            grid-template-columns: 2fr 1fr 1.5fr 0.5fr; 
+            gap: 10px; 
+            padding: 8px 0; 
+            border-bottom: 1px dotted #eee; 
+            align-items: center;
+        }
         .income { color: green; font-weight: bold; }
         .expense { color: red; font-weight: bold; }
         .estimate { color: orange; }
         .log-section { margin-top: 30px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
+        .log-section ul { list-style: none; padding: 0; }
+        .log-section li { margin-bottom: 5px; font-size: 0.9em; border-bottom: 1px dotted #ccc; padding-bottom: 3px;}
     </style>
 </head>
 <body>
@@ -30,7 +39,7 @@
         <div class="header">
             <h1 id="current-account-name"></h1>
             <p>ผู้ใช้งานปัจจุบัน: <span id="current-user"></span></p>
-            <p>ผู้เข้าชมล่าสุด: <span id="viewer-list"></span></p>
+            <p>ผู้เข้าชมทั้งหมด: <span id="viewer-list"></span></p>
         </div>
 
         <div class="balance">
@@ -57,11 +66,11 @@
 
         <div style="display: flex; gap: 20px;">
             <div style="flex: 1;">
-                <h2>รายการบัญชี</h2>
+                <h2>รายการบัญชี (รายรับ-รายจ่ายจริง)</h2>
                 <div class="transaction-list" id="transaction-list"></div>
             </div>
             <div style="flex: 1;">
-                <h2>รายการประเมิน (<span class="estimate">หักจากงบที่เหลือ</span>)</h2>
+                <h2>รายการประเมิน (จากงบที่เหลือ)</h2>
                 <div class="estimate-list" id="estimate-list"></div>
             </div>
         </div>
@@ -74,9 +83,11 @@
     </div>
 
     <script>
-        // *** แก้ไขตรงนี้: ใส่ Web App URL ของคุณ ***
+        // ====================================================================
+        // *** จุดที่ 2: แก้ไข Web App URL ของคุณที่นี่ ***
+        // ====================================================================
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby9X-r-i1q8B3fxdVYhxJpXNbsbyA4jKYBJI56s6t6FMpZpiGIpS5KFbPKQSzHF4Mby4g/exec'; 
-        // ***************************************
+        // ====================================================================
         
         let transactions = [];
         let estimates = [];
@@ -85,30 +96,40 @@
         let accountName = '';
 
         // ------------------------------------------------
-        // API COMMUNICATION FUNCTIONS
+        // API COMMUNICATION FUNCTIONS (ปรับปรุงล่าสุด)
         // ------------------------------------------------
 
         async function postData(payload) {
             try {
                 const response = await fetch(WEB_APP_URL, {
                     method: 'POST',
-                    contentType: 'application/json',
-                    body: JSON.stringify(payload),
-                    redirect: 'follow'
+                    headers: {
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify(payload)
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
+
                 const result = await response.json();
                 return result;
+
             } catch (error) {
-                console.error("Fetch Error:", error);
+                console.error("Fetch/Server Connection Error:", error);
+                // ส่ง Error ที่ชัดเจนกลับไป เพื่อให้แสดงผลในหน้าเว็บได้
                 return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
             }
         }
 
         async function refreshData() {
+            // ป้องกันการ refresh ก่อนที่ UI จะพร้อม
+            if (!document.getElementById('app-container').style.display === 'block') return;
+
             const result = await postData({ action: 'GET_DATA' });
             if (result.success) {
-                // ข้อมูลที่ส่งมาจาก Apps Script เป็น Array of Arrays
-                // เราต้องแปลงให้เป็น Object ที่มีชื่อคอลัมน์เพื่อให้ง่ายต่อการจัดการ
+                // Mapping ข้อมูล
                 transactions = result.transactions.map(r => ({
                     timestamp: r[0], user: r[1], type: r[2], amount: parseFloat(r[3]), description: r[4]
                 }));
@@ -125,7 +146,46 @@
         }
 
         // ------------------------------------------------
-        // FRONTEND LOGIC
+        // LOGIN & INITIAL LOAD
+        // ------------------------------------------------
+
+        async function login() {
+            const passcode = document.getElementById('passcode').value;
+            const user = document.getElementById('username').value.trim();
+
+            if (user === '') {
+                return alert('กรุณาใส่ชื่อของคุณ');
+            }
+            
+            const result = await postData({ action: 'LOGIN', passcode: passcode, user: user });
+
+            if (result.success) {
+                currentUser = user;
+                accountName = result.accountName;
+                document.getElementById('current-user').textContent = user;
+                document.getElementById('current-account-name').textContent = accountName;
+                
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('app-container').style.display = 'block';
+                await refreshData();
+            } else {
+                alert('การเข้าสู่ระบบล้มเหลว: ' + result.message);
+            }
+        }
+
+        // โหลดชื่อบัญชีมาแสดงก่อน
+        async function loadAccountName() {
+            const result = await postData({ action: 'LOGIN', passcode: '000000', user: 'System' }); 
+            
+            if (result.success && result.accountName) {
+                document.getElementById('account-name-display').textContent = result.accountName;
+            } else {
+                document.getElementById('account-name-display').textContent = result.message || 'Error: Check Apps Script URL';
+            }
+        }
+
+        // ------------------------------------------------
+        // DISPLAY & DATA MODIFICATION
         // ------------------------------------------------
 
         function updateDisplay() {
@@ -142,7 +202,7 @@
                 item.innerHTML = `
                     <span>${t.description}</span>
                     <span>${t.type === 'income' ? '+' : '-'} ${t.amount.toFixed(2)} บาท</span>
-                    <span>โดย: ${t.user} (${t.timestamp.split(',')[1].trim()})</span>
+                    <span>โดย: ${t.user}</span>
                     <button onclick="deleteTransaction(${index})" style="background: none; border: none; color: red; cursor: pointer;">ลบ</button>
                 `;
                 tList.appendChild(item);
@@ -172,40 +232,14 @@
             const aLog = document.getElementById('action-log');
             aLog.innerHTML = '';
             
-            // หาผู้เข้าชมทั้งหมด (ข้อ 5)
-            const viewerNames = [...new Set(logs.map(log => log.user))].join(', ');
+            const viewerNames = [...new Set(logs.filter(log => log.action === 'เข้าสู่ระบบ').map(log => log.user))].join(', ');
             document.getElementById('viewer-list').textContent = viewerNames;
             
-            // แสดง Log การกระทำ (ข้อ 6)
-            logs.slice().reverse().forEach(log => { // Reverse to show latest first
+            logs.slice().reverse().forEach(log => {
                 const li = document.createElement('li');
-                li.textContent = `[${log.timestamp}] ${log.user} : ${log.action}`;
+                li.textContent = `[${log.timestamp.split(',')[0]}] ${log.user} : ${log.action}`;
                 aLog.appendChild(li);
             });
-        }
-
-        async function login() {
-            const passcode = document.getElementById('passcode').value;
-            const user = document.getElementById('username').value.trim();
-
-            if (user === '') {
-                return alert('กรุณาใส่ชื่อของคุณ');
-            }
-            
-            const result = await postData({ action: 'LOGIN', passcode: passcode, user: user });
-
-            if (result.success) {
-                currentUser = user;
-                accountName = result.accountName;
-                document.getElementById('current-user').textContent = user;
-                document.getElementById('current-account-name').textContent = accountName;
-                
-                document.getElementById('auth-screen').style.display = 'none';
-                document.getElementById('app-container').style.display = 'block';
-                await refreshData();
-            } else {
-                alert('การเข้าสู่ระบบล้มเหลว: ' + result.message);
-            }
         }
 
         async function addTransaction() {
@@ -220,11 +254,7 @@
             }
             
             const result = await postData({ 
-                action: 'ADD_TRANSACTION',
-                user: currentUser,
-                type: type,
-                amount: amount,
-                description: description
+                action: 'ADD_TRANSACTION', user: currentUser, type: type, amount: amount, description: description
             });
 
             if (result.success) {
@@ -240,9 +270,7 @@
             if (!confirm(`คุณต้องการลบรายการนี้ใช่หรือไม่?`)) return;
             
             const result = await postData({ 
-                action: 'DELETE_TRANSACTION',
-                user: currentUser,
-                rowIndex: index
+                action: 'DELETE_TRANSACTION', user: currentUser, rowIndex: index
             });
 
             if (result.success) {
@@ -263,10 +291,7 @@
             }
 
             const result = await postData({ 
-                action: 'ADD_ESTIMATE',
-                user: currentUser,
-                amount: amount,
-                description: description
+                action: 'ADD_ESTIMATE', user: currentUser, amount: amount, description: description
             });
 
             if (result.success) {
@@ -282,9 +307,7 @@
             if (!confirm(`คุณต้องการลบรายการประเมินนี้ใช่หรือไม่?`)) return;
             
             const result = await postData({ 
-                action: 'DELETE_ESTIMATE',
-                user: currentUser,
-                rowIndex: index
+                action: 'DELETE_ESTIMATE', user: currentUser, rowIndex: index
             });
 
             if (result.success) {
@@ -300,9 +323,7 @@
             if (!confirm(`ยืนยันการเปลี่ยนรายการประเมินเป็นรายจ่ายจริงใช่หรือไม่?`)) return;
 
             const result = await postData({ 
-                action: 'FORWARD_ESTIMATE',
-                user: currentUser,
-                rowIndex: index
+                action: 'FORWARD_ESTIMATE', user: currentUser, rowIndex: index
             });
 
             if (result.success) {
@@ -312,19 +333,7 @@
             }
         }
         
-        // โหลดชื่อบัญชีมาแสดงก่อน
-        async function loadAccountName() {
-            // ใช้ action LOGIN กับรหัสผ่านปลอมเพื่อให้ได้ชื่อบัญชี
-            const result = await postData({ action: 'LOGIN', passcode: '000000', user: 'System' }); 
-            if (result.accountName) {
-                document.getElementById('account-name-display').textContent = result.accountName;
-            } else {
-                document.getElementById('account-name-display').textContent = 'Error: Check Apps Script URL';
-            }
-        }
-
         document.addEventListener('DOMContentLoaded', loadAccountName);
     </script>
 </body>
 </html>
-
