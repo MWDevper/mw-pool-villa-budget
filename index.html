@@ -190,17 +190,36 @@ async function postData(payload) {
         }
 
         // โหลดชื่อบัญชีมาแสดงก่อน
-        async function loadAccountName() {
-            console.log("DEBUG: Starting initial load."); // *** เพิ่มบรรทัดนี้ ***
-            const result = await postData({ action: 'LOGIN', passcode: '000000', user: 'System' }); 
-            
-            if (result.success && result.accountName) {
-                document.getElementById('account-name-display').textContent = result.accountName;
-            } else {
-                document.getElementById('account-name-display').textContent = result.message || 'Error: Check Apps Script URL';
-            }
+async function loadAccountName() {
+    console.log("DEBUG: Starting initial load.");
+    
+    // สร้าง URL สำหรับ GET request
+    const get_url = WEB_APP_URL + '?action=LOGIN&passcode=000000&user=System';
+    
+    try {
+        console.log("DEBUG: Attempting to GET to URL:", get_url);
+        const response = await fetch(get_url, {
+            method: 'GET' // ใช้ GET
+            // ไม่ต้องใส่ headers หรือ body
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP Error! Status: ${response.status}`);
         }
-
+        
+        const result = await response.json();
+        
+        if (result.success && result.accountName) {
+            document.getElementById('account-name-display').textContent = result.accountName;
+        } else {
+            document.getElementById('account-name-display').textContent = result.message || 'Error: Check Apps Script URL';
+        }
+        
+    } catch (error) {
+        console.error("Fetch/Server Connection Error:", error);
+        document.getElementById('account-name-display').textContent = 'การเชื่อมต่อ Server ล้มเหลว';
+    }
+}
         // ------------------------------------------------
         // DISPLAY & DATA MODIFICATION
         // ------------------------------------------------
@@ -354,6 +373,7 @@ async function postData(payload) {
     </script>
 </body>
 </html>
+
 
 
 
