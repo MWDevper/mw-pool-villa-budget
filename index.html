@@ -38,6 +38,10 @@
             top: 0;
             z-index: 1000;
         }
+        #account-name-display {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
         #current-datetime {
             font-size: 0.85em;
             opacity: 0.8;
@@ -304,30 +308,31 @@
 
     <script>
         // *** 1. CONFIGURATION & STATE ***
-        // *** ต้องเปลี่ยน WEB_APP_URL เป็น URL Deployment ใหม่ล่าสุดของคุณ ***
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwbfwSynu6KfPYZztiFWnMQBnonSpIYrZP6asflgKc9rp_mS2nf3j-CG5YNBZEO1SLChg/exec'; 
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzWQH2fyRyV4iRoXrVaUS-HKpcqK0LOm8deCcWkv8Fr01q03s4_GRhACfGjCbQ5oPXikA/exec'; // *** อย่าลืมเปลี่ยนเป็น URL ของคุณ ***
         let currentTab = 'add';
-        let transactionType = 'EXPENSE'; // Default type
-        const LOGGED_IN_USER_KEY = 'budgetAppUser'; // Key สำหรับเก็บชื่อผู้ใช้
-        const LOGGED_IN_PASSCODE_KEY = 'budgetAppPasscode'; // Key สำหรับเก็บรหัสผ่าน
+        let transactionType = 'EXPENSE'; 
+        const LOGGED_IN_USER_KEY = 'budgetAppUser'; 
+        const LOGGED_IN_PASSCODE_KEY = 'budgetAppPasscode'; 
 
         // *** 2. CORE UTILITY FUNCTIONS ***
 
         // Utility: Show stylish notification (Toast)
-        function showNotification(message, type = 'info') {
+        function showNotification(message, type = 'info', duration = 3000) {
             const notif = document.getElementById('notification');
-            notif.className = ''; // Clear existing classes
+            notif.className = ''; 
             notif.classList.add(type, 'show');
             notif.textContent = message;
-            
-            // Auto hide
-            setTimeout(() => {
-                notif.classList.remove('show');
-                setTimeout(() => {
-                    notif.style.display = 'none';
-                }, 500); // Wait for transition
-            }, 3000);
             notif.style.display = 'block';
+            
+            // ถ้า duration > 0 และไม่ใช่ duration สำหรับ Loading
+            if (duration > 0 && duration !== 60000) { 
+                setTimeout(() => {
+                    notif.classList.remove('show');
+                    setTimeout(() => {
+                        notif.style.display = 'none';
+                    }, 500);
+                }, duration);
+            }
         }
 
         // Utility: Update current date/time display
@@ -341,65 +346,61 @@
             });
             document.getElementById('current-datetime').textContent = `${dateStr} ${timeStr}`;
         }
-        setInterval(updateDateTime, 1000); // Update every second
-        updateDateTime(); // Initial call
+        setInterval(updateDateTime, 1000); 
+        updateDateTime(); 
 
         // Core API Call (Uses GET method for all data exchange)
-// Core API Call (Uses GET method for all data exchange)
-async function postData(payload) {
-    // 1. Disable all action buttons and show loading UI (New)
-    document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
-    
-    // 2. Show a temporary loading notification (New)
-    showNotification('กำลังดำเนินการ...', 'info', 60000); // 60s timeout for loading
+        async function postData(payload) {
+            // 1. Disable all action buttons and show loading UI
+            document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = true);
+            showNotification('กำลังดำเนินการ...', 'info', 60000); // 60s timeout for loading
 
-    const queryString = Object.keys(payload)
-        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
-        .join('&');
+            const queryString = Object.keys(payload)
+                .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(payload[key]))
+                .join('&');
 
-    const get_url = WEB_APP_URL + '?' + queryString;
-    
-    try {
-        const response = await fetch(get_url, {
-            method: 'GET'
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP Error! Status: ${response.status}`);
-        }
-        
-        const responseText = await response.text();
-        
-        try {
-            const result = JSON.parse(responseText);
+            const get_url = WEB_APP_URL + '?' + queryString;
             
-            // ถ้าเป็นรายการแก้ไข/เพิ่มสำเร็จ ให้ทำการโหลดข้อมูลใหม่
-            if (result.success && ['ADD_TRANSACTION', 'ADD_ESTIMATE', 'DELETE_TRANSACTION', 'DELETE_ESTIMATE', 'FORWARD_ESTIMATE'].includes(payload.action)) {
-                 loadAllData(); // <-- แก้ไข: สั่งโหลดข้อมูลทันทีที่ทำรายการสำเร็จ
+            try {
+                const response = await fetch(get_url, {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
+                
+                const responseText = await response.text();
+                
+                try {
+                    const result = JSON.parse(responseText);
+                    
+                    // ถ้าเป็นรายการแก้ไข/เพิ่มสำเร็จ ให้ทำการโหลดข้อมูลใหม่ (แก้ปัญหา UI ไม่รีเฟรช)
+                    if (result.success && ['ADD_TRANSACTION', 'ADD_ESTIMATE', 'DELETE_TRANSACTION', 'DELETE_ESTIMATE', 'FORWARD_ESTIMATE'].includes(payload.action)) {
+                         await loadAllData(); 
+                    }
+                    
+                    return result;
+                } catch (e) {
+                    console.error("Failed to parse JSON:", responseText);
+                    throw new Error('Server returned invalid data format.');
+                }
+
+            } catch (error) {
+                console.error("Fetch/Server Connection Error:", error);
+                return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
+            } finally {
+                // 2. Re-enable all action buttons
+                document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = false);
+                
+                // 3. Hide the loading notification
+                document.getElementById('notification').classList.remove('show', 'info');
+                document.getElementById('notification').style.display = 'none';
             }
-            
-            return result;
-        } catch (e) {
-            console.error("Failed to parse JSON:", responseText);
-            throw new Error('Server returned invalid data format.');
         }
-
-    } catch (error) {
-        console.error("Fetch/Server Connection Error:", error);
-        return { success: false, message: 'การเชื่อมต่อ Server ล้มเหลว' };
-    } finally {
-        // 3. Re-enable all action buttons (New)
-        document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => btn.disabled = false);
-        
-        // 4. Hide the loading notification (New)
-        document.getElementById('notification').classList.remove('show', 'info');
-        document.getElementById('notification').style.display = 'none';
-    }
-}
         
         // *** 3. UI MANAGEMENT ***
 
-        // Switch between Add Tab and Estimate Tab
         function showTab(tabName) {
             document.getElementById('add-tab').style.display = tabName === 'add' ? 'block' : 'none';
             document.getElementById('estimate-tab').style.display = tabName === 'estimate' ? 'block' : 'none';
@@ -410,7 +411,6 @@ async function postData(payload) {
             currentTab = tabName;
         }
 
-        // Switch between Expense/Income Type
         document.getElementById('btn-expense').addEventListener('click', function() {
             document.getElementById('btn-expense').classList.add('active');
             document.getElementById('btn-income').classList.remove('active');
@@ -422,42 +422,48 @@ async function postData(payload) {
             transactionType = 'INCOME';
         });
 
-        // *** 4. LOGIN & AUTHENTICATION ***
+        // *** 4. LOGIN & AUTHENTICATION (แก้ไข Autologin/Refresh) ***
+
+        // Load account name (Pool Villa) using a 'System' GET request
+        async function loadAccountName() {
+            document.getElementById('account-name-display').textContent = 'กำลังโหลดบัญชี...'; 
+            const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
+            // ใช้ fetch/postData ปกติ แต่ไม่ต้องแสดง Loading Toast
+            const result = await postData(payload); 
+
+            if (result.success && result.accountName) {
+                document.getElementById('account-name-display').textContent = `${result.accountName}`;
+            } else {
+                document.getElementById('account-name-display').textContent = `บัญชีหลัก: Error`;
+            }
+        }
 
         // Check for stored credentials on load
-// Check for stored credentials on load
-function checkAutoLogin() {
-    // 1. โหลดชื่อบัญชี Pool Villa (บัญชีหลัก) เสมอ
-    loadAccountName(); 
-    
-    const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
-    const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
-    
-    if (storedUser && storedPasscode) {
-        document.getElementById('username').value = storedUser;
-        document.getElementById('passcode').value = storedPasscode;
-        login(true); // Attempt silent auto-login
-    } 
-    // ถ้าไม่มี auto-login ก็ยังคงแสดงแค่ชื่อบัญชี Pool Villa
-}
+        async function checkAutoLogin() { 
+            // 1. โหลดชื่อบัญชี Pool Villa (บัญชีหลัก) เสมอ
+            await loadAccountName(); 
+            
+            const storedUser = localStorage.getItem(LOGGED_IN_USER_KEY);
+            const storedPasscode = localStorage.getItem(LOGGED_IN_PASSCODE_KEY);
+            
+            if (storedUser && storedPasscode) {
+                document.getElementById('username').value = storedUser;
+                document.getElementById('passcode').value = storedPasscode;
+                
+                const loginSuccess = await login(true); 
+                
+                if (!loginSuccess) {
+                    // ถ้า Auto-login ล้มเหลว ให้แสดงหน้า Login
+                    document.getElementById('login-screen').style.display = 'block';
+                    document.getElementById('app-screen').style.display = 'none';
+                }
+            } else {
+                // ถ้าไม่มีข้อมูลใน Local Storage ให้แสดงหน้า Login
+                document.getElementById('login-screen').style.display = 'block';
+                document.getElementById('app-screen').style.display = 'none';
+            }
+        }
         
-        // Load account name using a 'System' GET request
-// Load account name using a 'System' GET request
-async function loadAccountName() {
-    // 1. แสดงสถานะกำลังโหลด
-    document.getElementById('account-name-display').textContent = 'กำลังโหลด...'; 
-    const payload = { action: 'LOGIN', passcode: '000000', user: 'System' };
-    const result = await postData(payload); // ใช้ postData เพื่อจัดการ Loading UI
-
-    if (result.success && result.accountName) {
-        // 2. แสดงชื่อบัญชี (Pool Villa)
-        document.getElementById('account-name-display').textContent = `${result.accountName}`;
-    } else {
-        // 3. กรณีโหลดล้มเหลว
-        document.getElementById('account-name-display').textContent = `บัญชีหลัก: Error`;
-    }
-}
-
         // User Login function
         async function login(isAuto = false) {
             const passcode = document.getElementById('passcode').value.trim();
@@ -465,75 +471,65 @@ async function loadAccountName() {
             
             if (!passcode || !user) {
                 showNotification('กรุณากรอกรหัสผ่านและชื่อผู้ใช้งาน', 'info');
-                return;
+                return false;
             }
 
-            // Disable login button to prevent double-click
             const loginBtn = document.getElementById('login-btn');
             loginBtn.disabled = true;
 
             const payload = { action: 'LOGIN', passcode: passcode, user: user };
             const result = await postData(payload);
 
-            loginBtn.disabled = false; // Re-enable button
+            loginBtn.disabled = false; 
 
             if (result.success) {
-                // Store credentials for auto-login
                 localStorage.setItem(LOGGED_IN_USER_KEY, user);
                 localStorage.setItem(LOGGED_IN_PASSCODE_KEY, passcode);
                 
-                // Switch UI
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-screen').style.display = 'block';
                 document.getElementById('account-name-display').textContent = `สวัสดี, คุณ ${result.user}`;
                 document.getElementById('logout-btn').style.display = 'inline';
                 
                 showNotification('เข้าสู่ระบบสำเร็จ', 'success');
-                // Load all data after successful login
                 loadAllData();
+                return true;
             } else {
-                // Custom error for name duplication (assuming backend handles this)
                 if (result.message && result.message.includes('มีชื่อนี้แล้ว')) {
                      showNotification(result.message, 'error');
                 } else {
                      showNotification(`เข้าสู่ระบบล้มเหลว: ${result.message || 'รหัสผ่านไม่ถูกต้อง'}`, 'error');
                 }
                 
-                // If auto-login fails, clear stored credentials
                 if (isAuto) {
                     localStorage.removeItem(LOGGED_IN_USER_KEY);
                     localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
-                    // Force the screen back to login if auto-login fails
-                    document.getElementById('login-screen').style.display = 'block';
-                    document.getElementById('app-screen').style.display = 'none';
                 }
+                return false;
             }
         }
 
-		function logout() {
-			const user = localStorage.getItem(LOGGED_IN_USER_KEY);
-    
-		// 1. ส่งคำขอ LOGOUT ไปยัง Apps Script
-			postData({ action: 'LOGOUT', user: user }).then(() => {
-        // ไม่ต้องสนใจผลลัพธ์ แต่ให้ทำขั้นตอนต่อไป
-        
-			// 2. ลบข้อมูลใน Local Storage
-				localStorage.removeItem(LOGGED_IN_USER_KEY);
-				localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
-        
-			// 3. ปรับ UI
-				document.getElementById('login-screen').style.display = 'block';
-				document.getElementById('app-screen').style.display = 'none';
-				document.getElementById('logout-btn').style.display = 'none';
-				loadAccountName(); // Reload system name
-				showNotification('ออกจากระบบแล้ว', 'info');
-			});
-		}
-		document.getElementById('logout-btn').addEventListener('click', logout);
+        async function logout() {
+            const user = localStorage.getItem(LOGGED_IN_USER_KEY);
+            
+            // ส่งคำขอ LOGOUT ไปยัง Apps Script
+            await postData({ action: 'LOGOUT', user: user });
+            
+            // ลบข้อมูลใน Local Storage
+            localStorage.removeItem(LOGGED_IN_USER_KEY);
+            localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
+            
+            // ปรับ UI
+            document.getElementById('login-screen').style.display = 'block';
+            document.getElementById('app-screen').style.display = 'none';
+            document.getElementById('logout-btn').style.display = 'none';
+            await loadAccountName(); // Reload system name
+            showNotification('ออกจากระบบแล้ว', 'info');
+        }
+        document.getElementById('logout-btn').addEventListener('click', logout);
 
         // *** 5. DATA ACTIONS ***
         
-        // Add Transaction (Income/Expense)
         async function addTransaction() {
             const description = document.getElementById('transaction-description').value.trim();
             const amount = parseFloat(document.getElementById('transaction-amount').value);
@@ -545,32 +541,21 @@ async function loadAccountName() {
             }
 
             const payload = { 
-                action: 'ADD_TRANSACTION',
-                user: user,
-                type: transactionType, // 'EXPENSE' or 'INCOME'
-                description: description,
-                amount: amount
+                action: 'ADD_TRANSACTION', user: user, type: transactionType, description: description, amount: amount
             };
             
-            // Disable button during operation
-            const btn = document.querySelector('.btn-primary.btn-action[onclick="addTransaction()"]');
-            btn.disabled = true;
-
             const result = await postData(payload);
-
-            btn.disabled = false; // Re-enable button
-
+            
             if (result.success) {
                 showNotification('บันทึกรายการสำเร็จ', 'success');
                 document.getElementById('transaction-description').value = '';
                 document.getElementById('transaction-amount').value = '';
-                loadAllData(); // Refresh data display
+                // loadAllData ถูกเรียกใน postData แล้ว
             } else {
                 showNotification(`บันทึกรายการล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
         }
         
-        // Add Estimate
         async function addEstimate() {
             const description = document.getElementById('estimate-description').value.trim();
             const amount = parseFloat(document.getElementById('estimate-amount').value);
@@ -582,32 +567,23 @@ async function loadAccountName() {
             }
 
             const payload = { 
-                action: 'ADD_ESTIMATE',
-                user: user,
-                description: description,
-                amount: amount
+                action: 'ADD_ESTIMATE', user: user, description: description, amount: amount
             };
             
-            const btn = document.querySelector('.btn-primary.btn-action[onclick="addEstimate()"]');
-            btn.disabled = true;
-            
             const result = await postData(payload);
-
-            btn.disabled = false;
             
             if (result.success) {
                 showNotification('เพิ่มรายการประเมินสำเร็จ', 'success');
                 document.getElementById('estimate-description').value = '';
                 document.getElementById('estimate-amount').value = '';
-                loadAllData(); // Refresh data display
+                // loadAllData ถูกเรียกใน postData แล้ว
             } else {
                 showNotification(`เพิ่มรายการประเมินล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
         }
 
-        // *** 6. DATA DISPLAY ***
+        // *** 6. DATA DISPLAY (แก้ไขการส่ง index สำหรับลบ) ***
         
-        // Load all data (Transactions, Estimates, Logs, Visitor Count)
         async function loadAllData() {
             const payload = { action: 'GET_DATA' };
             const result = await postData(payload);
@@ -619,32 +595,11 @@ async function loadAccountName() {
                 document.getElementById('visitor-count').textContent = result.visitorCount || 0;
             } else {
                 showNotification(`ไม่สามารถโหลดข้อมูลได้: ${result.message || 'ข้อผิดพลาด'}`, 'error');
-                // Clear displays on failure
                 document.getElementById('data-display-section').innerHTML = '';
                 document.getElementById('log-display').textContent = 'ไม่สามารถโหลดประวัติได้';
                 document.getElementById('visitor-count').textContent = 'N/A';
             }
         }
-		// Utility: Show stylish notification (Toast)
-// เพิ่ม parameter 'duration' (มิลลิวินาที)
-function showNotification(message, type = 'info', duration = 3000) {
-    const notif = document.getElementById('notification');
-    notif.className = ''; // Clear existing classes
-    notif.classList.add(type, 'show');
-    notif.textContent = message;
-    notif.style.display = 'block';
-
-    // ถ้า duration > 0 ให้ทำการตั้งเวลาซ่อน
-    if (duration > 0 && duration !== 60000) { // 60000 คือโค้ดสำหรับ loading ที่จะถูกปิดโดย postData.finally
-        // Auto hide
-        setTimeout(() => {
-            notif.classList.remove('show');
-            setTimeout(() => {
-                notif.style.display = 'none';
-            }, 500); // Wait for transition
-        }, duration);
-    }
-}
         
         // Render Transaction/Estimate List for Mobile
         function renderTransactionData(transactions) {
@@ -666,16 +621,13 @@ function showNotification(message, type = 'info', duration = 3000) {
                 const amount = parseFloat(row.Amount);
                 const isExpense = row.Type === 'EXPENSE';
                 const amountColor = isExpense ? 'color: #dc3545;' : 'color: #28a745;';
-                
-                // Data for display: Row Index in Sheet (index 1-based, plus 1 for header)
-                const sheetRowIndex = index + 2; 
 
                 html += `
                     <tr>
                         <td>${row.Description}</td>
                         <td style="text-align: right; ${amountColor}">${amount.toLocaleString('th-TH')}</td>
                         <td style="text-align: center;">
-                            <button class="btn-secondary" style="padding: 5px 8px; font-size: 0.8em;" onclick="deleteTransaction('${row.Type}', ${sheetRowIndex})">ลบ</button>
+                            <button class="btn-secondary" style="padding: 5px 8px; font-size: 0.8em;" onclick="deleteTransaction('${row.Type}', ${index})">ลบ</button>
                         </td>
                     </tr>
                 `;
@@ -683,9 +635,9 @@ function showNotification(message, type = 'info', duration = 3000) {
             
             html += `</tbody></table></div>`;
             
-            // Render Estimate section right after Transactions
-            const estimateList = document.getElementById('data-display-section');
-            estimateList.innerHTML = html;
+            const displaySection = document.getElementById('data-display-section');
+            // ใช้ innerHTML แทน += เพื่อรีเฟรชส่วนนี้ก่อน
+            displaySection.innerHTML = html; 
         }
 
         function renderEstimateData(estimates) {
@@ -710,15 +662,13 @@ function showNotification(message, type = 'info', duration = 3000) {
                 estimates.forEach((row, index) => {
                     const amount = parseFloat(row.Amount);
                     totalEstimate += amount;
-                    // Data for display: Row Index in Sheet (index 1-based, plus 1 for header)
-                    const sheetRowIndex = index + 2; 
 
                     html += `
                         <tr>
                             <td>${row.Description}</td>
                             <td style="text-align: right;">${amount.toLocaleString('th-TH')}</td>
                             <td style="text-align: center;">
-                                <button class="btn-secondary" style="padding: 5px 8px; font-size: 0.8em;" onclick="deleteEstimate(${sheetRowIndex})">ลบ</button>
+                                <button class="btn-secondary" style="padding: 5px 8px; font-size: 0.8em;" onclick="deleteEstimate(${index})">ลบ</button>
                             </td>
                         </tr>
                     `;
@@ -744,7 +694,6 @@ function showNotification(message, type = 'info', duration = 3000) {
         function renderLogs(logs) {
             const logElement = document.getElementById('log-display');
             if (logs.length > 0) {
-                // Display only the latest 10 logs
                 const latestLogs = logs.slice(-10).reverse();
                 logElement.textContent = latestLogs.map(log => 
                     `[${log.Timestamp}] ${log.User}: ${log.Action}`
@@ -755,45 +704,44 @@ function showNotification(message, type = 'info', duration = 3000) {
         }
         
         // Delete Transaction
-        async function deleteTransaction(type, rowIndex) {
-            if (!confirm(`คุณต้องการลบรายการ ${type} ในแถวที่ ${rowIndex} นี้ใช่หรือไม่?`)) return;
+        async function deleteTransaction(type, dataIndex) {
+            if (!confirm(`คุณต้องการลบรายการ ${type} ในแถวที่ ${dataIndex + 1} นี้ใช่หรือไม่?`)) return;
 
             const user = localStorage.getItem(LOGGED_IN_USER_KEY);
-            const action = type === 'EXPENSE' ? 'DELETE_TRANSACTION' : 'DELETE_TRANSACTION'; // ใช้ action เดียวกัน
             
             const payload = { 
-                action: action,
+                action: 'DELETE_TRANSACTION',
                 user: user,
-                rowIndex: rowIndex
+                rowIndex: dataIndex // ส่ง 0-based index ไปให้ Backend
             };
 
             const result = await postData(payload);
             
             if (result.success) {
                 showNotification('ลบรายการสำเร็จ', 'success');
-                loadAllData();
+                // loadAllData ถูกเรียกใน postData แล้ว
             } else {
                 showNotification(`ลบรายการล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
         }
         
         // Delete Estimate
-        async function deleteEstimate(rowIndex) {
-            if (!confirm(`คุณต้องการลบรายการประเมินในแถวที่ ${rowIndex} นี้ใช่หรือไม่?`)) return;
+        async function deleteEstimate(dataIndex) {
+            if (!confirm(`คุณต้องการลบรายการประเมินในแถวที่ ${dataIndex + 1} นี้ใช่หรือไม่?`)) return;
 
             const user = localStorage.getItem(LOGGED_IN_USER_KEY);
             
             const payload = { 
                 action: 'DELETE_ESTIMATE',
                 user: user,
-                rowIndex: rowIndex
+                rowIndex: dataIndex // ส่ง 0-based index ไปให้ Backend
             };
 
             const result = await postData(payload);
             
             if (result.success) {
                 showNotification('ลบรายการประเมินสำเร็จ', 'success');
-                loadAllData();
+                // loadAllData ถูกเรียกใน postData แล้ว
             } else {
                 showNotification(`ลบรายการประเมินล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
             }
