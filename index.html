@@ -499,6 +499,7 @@ async function loadAccountName() {
 // User Login function
 // User Login function
 // User Login function
+// ในไฟล์ poolvilla1.html
 async function login(isAuto = false) {
     const passcode = document.getElementById('passcode').value.trim();
     const user = document.getElementById('username').value.trim();
@@ -518,7 +519,7 @@ async function login(isAuto = false) {
     loginBtn.disabled = false; 
 
     if (result.success) {
-        // ... (โค้ด Login สำเร็จทั้งหมด) ...
+        // ... (Login สำเร็จ) ...
         localStorage.setItem(LOGGED_IN_USER_KEY, user);
         localStorage.setItem(LOGGED_IN_PASSCODE_KEY, passcode);
         
@@ -536,37 +537,16 @@ async function login(isAuto = false) {
         return true;
 
     } else {
-        // *** ส่วนจัดการชื่อซ้ำ (Active Session) และการปฏิเสธ ***
-        if (result.message && result.message.includes('มีชื่อนี้กำลังใช้งานอยู่ในระบบแล้ว')) {
-             
-             // 1. สั่ง LOGOUT เซสชันที่ค้างอยู่เสมอ (เพื่อเคลียร์ชีท ActiveUsers)
-             await postData({ action: 'LOGOUT', user: user }); 
-             
-             // 2. ถ้าเป็น Auto-login ล้มเหลว (ปัญหา Refresh)
-             if (isAuto) {
-                 localStorage.removeItem(LOGGED_IN_USER_KEY);
-                 localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
-
-                 showNotification(`เซสชันหมดอายุ: กรุณาล็อกอินอีกครั้ง`, 'info', 5000);
-                 document.getElementById('login-screen').style.display = 'block';
-                 document.getElementById('app-screen').style.display = 'none';
-                 await loadAccountName(); 
-             } 
-             // 3. ถ้าเป็น Manual-login ล้มเหลว (ปัญหาล็อกอินชื่อเดิมไม่ได้)
-             else {
-                 // ** FIX: แจ้งผู้ใช้ว่าเซสชันถูกเคลียร์แล้ว และให้ลองกด Login ซ้ำอีกครั้ง **
-                 showNotification(`เซสชันค้างถูกเคลียร์แล้ว กรุณากดปุ่ม 'เข้าสู่ระบบ' อีกครั้ง`, 'info', 5000);
-             }
-        } 
-        // *** กรณี Login ล้มเหลวจากสาเหตุอื่น (เช่น รหัสผ่านผิด) ***
-        else {
-             showNotification(`เข้าสู่ระบบล้มเหลว: ${result.message || 'รหัสผ่านไม่ถูกต้อง'}`, 'error');
-             
-             if (isAuto) {
-                 localStorage.removeItem(LOGGED_IN_USER_KEY);
-                 localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
-                 await loadAccountName(); 
-             }
+        // ✅ ถ้า Login ล้มเหลว ให้แสดงข้อความ Error จาก Backend ทันที
+        showNotification(`เข้าสู่ระบบล้มเหลว: ${result.message || 'ข้อผิดพลาดไม่ทราบสาเหตุ'}`, 'error');
+        
+        // ถ้า Auto-login ล้มเหลว ให้เคลียร์ Local Storage เพื่อบังคับให้ผู้ใช้ต้องกรอกใหม่
+        if (isAuto) {
+             localStorage.removeItem(LOGGED_IN_USER_KEY);
+             localStorage.removeItem(LOGGED_IN_PASSCODE_KEY);
+             await loadAccountName();
+             document.getElementById('login-screen').style.display = 'block';
+             document.getElementById('app-screen').style.display = 'none';
         }
         return false;
     }
@@ -809,6 +789,7 @@ async function login(isAuto = false) {
     </script>
 </body>
 </html>
+
 
 
 
