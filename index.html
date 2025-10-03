@@ -38,6 +38,25 @@
             top: 0;
             z-index: 1000;
         }
+        /* BALANCE DISPLAY */
+        #balance-display {
+    text-align: center;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+    font-weight: bold;
+    background-color: #ffffff; /* พื้นหลังสีขาว */
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.balance-positive {
+    color: #28a745; /* สีเขียว */
+}
+
+.balance-negative {
+    color: #dc3545; /* สีแดง */
+}
         #account-name-display {
             font-weight: bold;
             font-size: 1.1em;
@@ -246,6 +265,10 @@
         </section>
 
         <section id="app-screen" style="display: none;">
+
+            <div id="balance-display">
+    กำลังคำนวณยอดคงเหลือ...
+            </div>
             
             <div class="tab-buttons">
                 <button class="tab-button active" onclick="showTab('add')">เพิ่มรายการ</button>
@@ -625,23 +648,32 @@ async function login(isAuto = false) {
 
         // *** 6. DATA DISPLAY ***
         
-        async function loadAllData() {
-            const payload = { action: 'GET_DATA' };
-            const result = await postData(payload);
+// ในไฟล์ poolvilla1.html
+// ... (ฟังก์ชันอื่น ๆ) ...
 
-            if (result.success) {
-                renderTransactionData(result.transactions);
-                renderEstimateData(result.estimates);
-                renderLogs(result.logs);
-                // แก้ไข: เพิ่ม "ครั้ง" ต่อท้ายตัวเลข
-                document.getElementById('visitor-count').textContent = (result.visitorCount || 0) + ' ครั้ง';
-            } else {
-                showNotification(`ไม่สามารถโหลดข้อมูลได้: ${result.message || 'ข้อผิดพลาด'}`, 'error');
-                document.getElementById('data-display-section').innerHTML = '';
-                document.getElementById('log-display').textContent = 'ไม่สามารถโหลดประวัติได้';
-                document.getElementById('visitor-count').textContent = 'N/A';
-            }
-        }
+// Core Data Loading
+async function loadAllData() {
+    showNotification('กำลังโหลดข้อมูล...', 'info', 60000); 
+    const payload = { action: 'GET_DATA' };
+    const result = await postData(payload);
+
+    if (result.success) {
+        // อัปเดตตัวแปรหลัก
+        transactionsData = result.transactions;
+        estimatesData = result.estimates;
+        logsData = result.logs;
+        
+        // เรียก render ด้วยข้อมูลใหม่ (รวมถึง balance และ visitors)
+        renderData(transactionsData, estimatesData);
+        // ✅ ส่งผลลัพธ์ทั้งหมดไปให้ renderOverview
+        renderOverview(result); 
+        
+        showNotification('โหลดข้อมูลสำเร็จ', 'success');
+    } else {
+        showNotification(`โหลดข้อมูลล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
+    }
+}
+// ... (ฟังก์ชันอื่น ๆ) ...
         
         function renderTransactionData(transactions) {
             let html = `
@@ -741,6 +773,44 @@ async function login(isAuto = false) {
                 logElement.textContent = 'ไม่มีประวัติการดำเนินการ';
             }
         }
+        // ในไฟล์ poolvilla1.html
+// ... (ฟังก์ชันอื่น ๆ) ...
+
+// Render Overview (Summary Stats)
+// ✅ รับ result object ทั้งหมดเข้ามา
+function renderOverview(result) {
+    // 1. คำนวณยอดเงินคงเหลือ (จาก Backend)
+    const balanceAmount = parseFloat(result.balance) || 0;
+    const balanceElement = document.getElementById('balance-display');
+    
+    // แสดงผลยอดเงินคงเหลือ
+    balanceElement.innerHTML = `ยอดเงินคงเหลือ: <span class="${balanceAmount >= 0 ? 'balance-positive' : 'balance-negative'}">${balanceAmount.toLocaleString('th-TH')} บาท</span>`;
+
+
+    // 2. แสดงยอดผู้เข้าชมทั้งหมด (พร้อมรายละเอียด user)
+    const visitorCount = parseInt(result.visitorCount) || 0;
+    let visitorDetail = '';
+    
+    if (result.visitors && result.visitors.length > 0) {
+        // ใช้ Set เพื่อดึงชื่อผู้ใช้ที่ไม่ซ้ำกัน
+        const uniqueUsers = [...new Set(result.visitors.map(v => v.User).filter(u => u !== 'System_Check'))];
+        
+        if (uniqueUsers.length > 0) {
+            // ✅ แสดงชื่อผู้เข้าชมที่ไม่ซ้ำกัน
+            visitorDetail = ` (เข้าชม: ${uniqueUsers.join(', ')})`;
+        }
+    }
+
+    // แสดงผลรวมและรายละเอียดผู้เข้าชม
+    document.getElementById('visitor-count-display').textContent = `${visitorCount}${visitorDetail}`;
+
+
+    // 3. แสดงยอดรวมรายรับ/รายจ่าย/ประเมิน (โค้ดเดิม)
+    // ... (โค้ดคำนวณ totalIncome, totalExpense, totalEstimate, ฯลฯ) ...
+    
+    // ... (โค้ดเดิมส่วนแสดงผลใน overview-cards) ...
+    
+}
         
         // Delete Transaction
         async function deleteTransaction(type, dataIndex) {
@@ -789,6 +859,7 @@ async function login(isAuto = false) {
     </script>
 </body>
 </html>
+
 
 
 
