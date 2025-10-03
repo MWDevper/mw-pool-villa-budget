@@ -197,6 +197,59 @@
             font-weight: bold;
             color: #495057;
         }
+        /* ในส่วน <style> ของ poolvilla2.html */
+
+/* TABLE STYLES (Mobile-friendly, Compact) */
+.transaction-table {
+    width: 100%;
+    border-collapse: collapse; /* ยุบขอบตาราง */
+    margin-top: 10px;
+    font-size: 0.85em; /* ✅ FIX: ปรับขนาดตัวอักษรให้เล็กลง */
+}
+
+.transaction-table th, .transaction-table td {
+    padding: 8px 5px; /* ลด Padding ให้กระชับขึ้น */
+    border-bottom: 1px solid #eee;
+    text-align: left;
+}
+
+.transaction-table th {
+    background-color: #f4f4f4;
+    font-weight: bold;
+    color: #555;
+    position: sticky; /* ทำให้หัวตารางติดด้านบนเมื่อเลื่อน (Scroll) */
+    top: 0;
+    z-index: 10;
+}
+
+.transaction-table td:nth-child(2) { /* คอลัมน์ "ประเภท/จำนวน" */
+    text-align: right;
+    white-space: nowrap; 
+    font-weight: bold;
+}
+
+.transaction-table td:nth-child(3) { /* คอลัมน์ "ลบ" */
+    text-align: center; /* ให้ปุ่มลบอยู่ตรงกลาง */
+}
+
+.transaction-table .income-row {
+    background-color: #e6ffe6; /* พื้นหลังสีเขียวอ่อนสำหรับรายรับ */
+}
+
+.transaction-table .expense-row {
+    background-color: #fff0f0; /* พื้นหลังสีชมพูอ่อนสำหรับรายจ่าย */
+}
+
+/* ปรับขนาดปุ่ม "ลบ" ให้เล็กลง */
+.transaction-table .delete-btn {
+    padding: 3px 6px;
+    font-size: 0.75em;
+    margin-left: 0; 
+}
+
+/* เพิ่มคลาสสีที่ใช้ในตาราง */
+.text-success { color: #28a745; }
+.text-danger { color: #dc3545; }
 /* เพิ่ม CSS สำหรับทำให้รายการเลื่อนได้ */
         .scrollable-list {
             max-height: 400px; /* กำหนดความสูงสูงสุด (ปรับเปลี่ยนได้ตามต้องการ) */
@@ -306,8 +359,18 @@
                 <div class="list-section">
                     <h2>รายการบัญชี (รับ-จ่าย)</h2>
     
-                    <div id="transactions-list" class="scrollable-list">
-                        <p class="no-data">ไม่มีรายการรับ-จ่าย</p>
+                    <div id="transactions-container" class="scrollable-list">
+                        <table id="transactions-table" class="transaction-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50%;">รายละเอียด</th>
+                                    <th style="width: 30%; text-align: right;">จำนวน</th>
+                                    <th style="width: 20%;"></th> </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="3" class="no-data">ไม่มีรายการรับ-จ่าย</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -702,40 +765,43 @@ async function loadAllData() {
         
 // ในไฟล์ poolvilla2.html (ประมาณบรรทัด 700)
 function renderTransactionData(transactions) {
-    const listElement = document.getElementById('transactions-list');
+    // ✅ FIX 3: เปลี่ยนไปใช้ ID ของ <tbody> ของตาราง
+    const listElement = document.querySelector('#transactions-table tbody'); 
     listElement.innerHTML = ''; 
 
     if (!transactions || transactions.length === 0) {
-        listElement.innerHTML = '<p class="no-data">ไม่มีรายการรับ-จ่าย</p>';
+        listElement.innerHTML = '<tr><td colspan="3" class="no-data">ไม่มีรายการรับ-จ่าย</td></tr>';
         return;
     }
     
-    // ✅ FIX 2: สลับลำดับ (Reverse) และ จำกัดจำนวน (Slice) ให้โชว์ 10 รายการล่าสุด
+    // สลับลำดับ (Reverse) และ จำกัดจำนวน (Slice) ให้โชว์ 10 รายการล่าสุด
     const latestTransactions = transactions.slice().reverse().slice(0, 10);
 
-    latestTransactions.forEach((t, index) => {
-        const typeClass = t.Type === 'INCOME' ? 'income' : 'expense';
+    latestTransactions.forEach((t) => {
+        const typeClass = t.Type === 'INCOME' ? 'income-row' : 'expense-row';
+        const typeTextClass = t.Type === 'INCOME' ? 'text-success' : 'text-danger';
         const typeLabel = t.Type === 'INCOME' ? 'รับ' : 'จ่าย';
         
-        // เนื่องจากเรา Reverse และ Slice ลำดับของ index จะไม่ตรงกับ Sheet แล้ว
-        // เราจึงไม่สามารถใช้ index ในการลบได้โดยตรง (แต่เราจะแก้ปัญหานี้ในขั้นตอนถัดไป)
+        const amount = (parseFloat(t.Amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 });
         
-        const item = document.createElement('div');
-        item.className = `list-item ${typeClass}`;
-        item.innerHTML = `
-            <div>
-                <span class="list-description">${t.Description || '-'}</span>
-                <span class="list-type">(${typeLabel})</span>
-            </div>
-            <div class="list-amount-container">
-                <span class="list-amount">${(parseFloat(t.Amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท</span>
-                <button onclick="deleteTransaction(${t['Data Index']})" class="delete-btn">ลบ</button>
-            </div>
-            <div class="list-info-small">
-                ${t.Timestamp} | โดย ${t.User}
-            </div>
+        const row = document.createElement('tr');
+        row.className = `${typeClass}`; // กำหนดสีพื้นหลังตามประเภท
+
+        // โครงสร้างตาราง (3 คอลัมน์)
+        row.innerHTML = `
+            <td>
+                ${t.Description || '-'} 
+                <div style="font-size: 0.7em; color: #888;">${t.Timestamp} | โดย ${t.User}</div>
+            </td>
+            <td class="${typeTextClass}">
+                ${typeLabel}<br>
+                ${amount}
+            </td>
+            <td style="text-align: center;">
+                <button onclick="deleteTransaction('${t.Type}', ${t['Data Index']})" class="delete-btn">ลบ</button>
+            </td>
         `;
-        listElement.appendChild(item);
+        listElement.appendChild(row);
     });
 }
 
@@ -896,6 +962,7 @@ function renderOverview(result) {
     </script>
 </body>
 </html>
+
 
 
 
