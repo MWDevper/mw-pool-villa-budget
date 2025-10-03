@@ -392,7 +392,18 @@
                 <div style="font-weight: bold; margin-bottom: 15px;">ยอดรวมประเมิน: <span id="total-estimate-display">0.00</span></div>
 
                 <div id="estimate-list-container">
-                    </div>
+                    <table id="estimates-table" class="transaction-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">รายละเอียด</th>
+                                <th style="width: 30%; text-align: right;">จำนวน</th>
+                                <th style="width: 15%; text-align: center;">จ่ายจริง</th> <th style="width: 15%; text-align: center;">ลบ</th> </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" class="no-data">ไม่มีรายการประเมิน</td></tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 <div class="content-section" style="margin-top: 15px;">
                     <h3>เพิ่มรายการประเมิน</h3>
@@ -818,54 +829,65 @@ function renderTransactionData(transactions) {
     });
 }
 
-        function renderEstimateData(estimates) {
-             let html = `
-                <div class="content-section" style="margin-top: 20px;">
-                    <h3>รายการประเมินจ่ายล่วงหน้า (จากงบที่เหลือ)</h3>
-            `;
-            
-            let totalEstimate = 0;
-            
-            if (estimates.length > 0) {
-                 html += `<table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 50%;">รายการ</th>
-                                    <th style="width: 30%; text-align: right;">ยอดเงิน</th>
-                                    <th style="width: 20%; text-align: center;"></th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-                
-                estimates.forEach((row, index) => {
-                    const amount = parseFloat(row.Amount);
-                    totalEstimate += amount;
+// ในไฟล์ poolvilla2.html (ประมาณบรรทัด 750)
+function renderEstimateData(estimates) {
+    // 1. จัดการ Total Estimate Display
+    let totalEstimate = 0;
+    estimates.forEach(e => {
+        totalEstimate += parseFloat(e.Amount) || 0;
+    });
 
-                    html += `
-                        <tr>
-                            <td>${row.Description}</td>
-                            <td style="text-align: right;">${amount.toLocaleString('th-TH')}</td>
-                            <td style="text-align: center;">
-                                <button class="btn-secondary" style="padding: 5px 8px; font-size: 0.8em;" onclick="deleteEstimate(${index})">ลบ</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                
-                html += `</tbody></table>`;
-            } else {
-                 html += `<p style="text-align: center; color: #888;">ไม่มีรายการประเมิน</p>`;
-            }
-            
-            html += `</div>`;
-            
-            const displaySection = document.getElementById('data-display-section');
-            displaySection.innerHTML += html;
-            
-            document.getElementById('total-estimate-display').textContent = totalEstimate.toLocaleString('th-TH', { 
-                minimumFractionDigits: 2, maximumFractionDigits: 2 
-            });
-        }
+    document.getElementById('total-estimate-display').textContent = totalEstimate.toLocaleString('th-TH', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+    });
+
+    // 2. จัดการตารางแสดงรายการ
+    const listElement = document.querySelector('#estimates-table tbody'); 
+    
+    // ตรวจสอบความถูกต้องของ Element
+    if (!listElement) return; 
+
+    listElement.innerHTML = ''; 
+
+    if (!estimates || estimates.length === 0) {
+        // colspan=4 สำหรับ 4 คอลัมน์ (รายละเอียด, จำนวน, จ่ายจริง, ลบ)
+        listElement.innerHTML = '<tr><td colspan="4" class="no-data">ไม่มีรายการประเมิน</td></tr>';
+        return;
+    }
+    
+    // โชว์รายการประเมินทั้งหมด
+    estimates.forEach((e) => {
+        const amount = (parseFloat(e.Amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 });
+        
+        const row = document.createElement('tr');
+        row.className = 'estimate-row'; // สไตล์สำหรับรายการประเมิน
+
+        row.innerHTML = `
+            <td>
+                ${e.Description || '-'} 
+                <div style="font-size: 0.7em; color: #888;">${e.Timestamp} | โดย ${e.User}</div>
+            </td>
+            <td style="text-align: right; color: #ffc107;">
+                ${amount}
+            </td>
+            <td style="text-align: center;">
+                <button onclick="forwardEstimate(${e['Data Index']})" class="forward-btn" style="
+                    background-color: #28a745; 
+                    color: white; 
+                    padding: 3px 6px; 
+                    font-size: 0.75em; 
+                    border: none; 
+                    border-radius: 4px;
+                ">จ่ายจริง</button>
+            </td>
+            <td style="text-align: center;">
+                <button onclick="deleteEstimate(${e['Data Index']})" class="delete-btn">ลบ</button>
+            </td>
+        `;
+        listElement.appendChild(row);
+    });
+}
         
 // ในไฟล์ poolvilla2.html (ประมาณบรรทัด 780)
 
@@ -1022,6 +1044,7 @@ async function forwardEstimate(dataIndex) {
     </script>
 </body>
 </html>
+
 
 
 
