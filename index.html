@@ -937,6 +937,16 @@ function renderLogs(logs) { // ✅ FIX 3: ใช้ชื่อ parameter เป
 
 // Render Overview (Summary Stats)
 function renderOverview(result) {
+        // 1. ✅ FIX: ดึงค่าและแสดงยอด Budget
+    const totalBudgetAmount = parseFloat(result.totalBudget) || 0;
+    const budgetElement = document.getElementById('total-budget-amount');
+    
+    if (budgetElement) {
+        budgetElement.textContent = totalBudgetAmount.toLocaleString('th-TH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
     // 1. คำนวณยอดเงินที่ใช้ได้จริง (Available Balance)
     const availableBalanceAmount = parseFloat(result.availableBalance) || 0;
     const totalEstimateAmount = parseFloat(result.totalEstimate) || 0; // ✅ NEW
@@ -1068,6 +1078,7 @@ async function forwardEstimate(dataIndex) {
     </script>
 </body>
 </html>
+
 
 
 
