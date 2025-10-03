@@ -347,7 +347,7 @@
         <section id="app-screen" style="display: none;">
 
     <div id="budget-display">
-        <strong>Budget รวม(รายรับ) :</strong> 
+        <strong>Budget รวม (รายรับ) :</strong> 
         <span id="total-budget-amount">กำลังคำนวณ...</span>
     </div>
 
@@ -421,7 +421,7 @@
                             <tr>
                                 <th style="width: 40%;">รายละเอียด</th>
                                 <th style="width: 30%; text-align: right;">จำนวน</th>
-                                <th style="width: 15%; text-align: center;">เปลี่ยนเป็นจ่ายจริง</th> <th style="width: 15%; text-align: center;">ลบ</th> </tr>
+                                <th style="width: 15%; text-align: center;">เปลี่ยนเป็น</th> <th style="width: 15%; text-align: center;">ลบ</th> </tr>
                         </thead>
                         <tbody>
                             <tr><td colspan="4" class="no-data">ไม่มีรายการประเมิน</td></tr>
@@ -903,7 +903,7 @@ function renderEstimateData(estimates) {
                     font-size: 0.75em; 
                     border: none; 
                     border-radius: 4px;
-                ">จ่ายจริง</button>
+                ">จ่าย</button>
             </td>
             <td style="text-align: center;">
                 <button onclick="deleteEstimate(${e['Data Index']})" class="delete-btn">ลบ</button>
@@ -1078,6 +1078,7 @@ async function forwardEstimate(dataIndex) {
     </script>
 </body>
 </html>
+
 
 
 
