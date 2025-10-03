@@ -330,6 +330,19 @@
             <div id="balance-display">
     กำลังคำนวณยอดคงเหลือ...
             </div>
+
+            <div id="estimate-total-display" style="
+                    text-align: center; 
+                    padding: 5px 0; 
+                    margin-bottom: 10px; 
+                    font-size: 1.0em; 
+                    color: #ffc107; /* สีเหลืองสำหรับคำเตือน */
+                    font-weight: bold;
+                    display: none; /* ซ่อนไว้ก่อน */
+                    ">
+                    ยอดประเมินจ่ายรวม: 
+                    <span class="estimate-amount">0.00 บาท</span>
+            </div>
             
             <div class="tab-buttons">
                 <button class="tab-button active" onclick="showTab('add')">เพิ่มรายการ</button>
@@ -878,19 +891,40 @@ function renderLogs(logs) { // ✅ FIX 3: ใช้ชื่อ parameter เป
 
 // Render Overview (Summary Stats)
 function renderOverview(result) {
-    // 1. ✅ แสดงผลยอดเงินคงเหลือ (แก้ไขการจัดรูปแบบตัวเลข)
-    const balanceAmount = parseFloat(result.balance) || 0;
-    const balanceElement = document.getElementById('balance-display');
-    const balanceClass = balanceAmount >= 0 ? 'balance-positive' : 'balance-negative';
+    // 1. คำนวณยอดเงินที่ใช้ได้จริง (Available Balance)
+    const availableBalanceAmount = parseFloat(result.availableBalance) || 0;
+    const totalEstimateAmount = parseFloat(result.totalEstimate) || 0; // ✅ NEW
     
+    const balanceElement = document.getElementById('balance-display');
+    const balanceClass = availableBalanceAmount >= 0 ? 'balance-positive' : 'balance-negative';
+    
+    // ✅ FIX: แสดง Available Balance
     balanceElement.innerHTML = `
-        ยอดเงินคงเหลือ: 
+        ยอดเงินคงเหลือ (ใช้ได้จริง): 
         <div class="${balanceClass}">
-            ${balanceAmount.toLocaleString('th-TH', { 
+            ${availableBalanceAmount.toLocaleString('th-TH', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
             })} บาท
         </div>`;
+
+    // 2. แสดงยอดประเมินจ่ายรวม (ถัดจาก ยอดเงินคงเหลือ)
+    // เราจะใช้ div ใหม่ใต้ balance-display (ดู 2.2)
+    const estimateDisplayElement = document.getElementById('estimate-total-display');
+    if (estimateDisplayElement) {
+        if (totalEstimateAmount > 0) {
+            estimateDisplayElement.style.display = 'block';
+            estimateDisplayElement.innerHTML = `
+                ยอดประเมินจ่ายรวม: 
+                <span class="estimate-amount">${totalEstimateAmount.toLocaleString('th-TH', { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                })} บาท</span>
+            `;
+        } else {
+            estimateDisplayElement.style.display = 'none'; // ซ่อนถ้าไม่มีรายการ
+        }
+    }
 
 
     // 2. ✅ แสดงยอดผู้เข้าชมทั้งหมด (แก้ไข ID และการแสดงผล HTML)
@@ -957,11 +991,38 @@ function renderOverview(result) {
             }
         }
 
+        // ในไฟล์ poolvilla2.html
+// ... (ต่อจาก async function deleteEstimate(dataIndex)) ...
+
+// ✅ NEW: Forward Estimate to Transaction
+async function forwardEstimate(dataIndex) {
+    if (!confirm(`คุณต้องการเปลี่ยนรายการประเมินแถวที่ ${dataIndex + 1} เป็นรายการรายจ่ายจริงใช่หรือไม่? รายการเดิมจะถูกลบ`)) return;
+
+    const user = localStorage.getItem(LOGGED_IN_USER_KEY);
+    
+    const payload = { 
+        action: 'FORWARD_ESTIMATE',
+        user: user,
+        rowIndex: dataIndex 
+    };
+
+    showNotification('กำลังเปลี่ยนเป็นรายจ่ายจริง...', 'info', 60000); 
+    const result = await postData(payload);
+    
+    if (result.success) {
+        showNotification('บันทึกเป็นรายจ่ายจริงสำเร็จ', 'success');
+        await loadAllData(); // โหลดข้อมูลใหม่เพื่ออัปเดตทั้ง 2 แท็บและยอดคงเหลือ
+    } else {
+        showNotification(`ดำเนินการล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
+    }
+}
+
         // Initialize on load
         window.onload = checkAutoLogin;
     </script>
 </body>
 </html>
+
 
 
 
