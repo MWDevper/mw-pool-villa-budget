@@ -347,7 +347,7 @@
         <section id="app-screen" style="display: none;">
 
     <div id="budget-display">
-        ยอดงบประมาณรวม (รายรับทั้งหมด): 
+        Budget รวม(รายรับ) : 
         <span id="total-budget-amount">กำลังคำนวณ...</span>
     </div>
 
@@ -971,7 +971,7 @@ function renderOverview(result) {
         if (totalEstimateAmount > 0) {
             estimateDisplayElement.style.display = 'block';
             estimateDisplayElement.innerHTML = `
-                ยอดประเมินจ่ายรวม: 
+                ประเมินรายจ่ายล่วงหน้ารวม: 
                 <span class="estimate-amount">${totalEstimateAmount.toLocaleString('th-TH', { 
                     minimumFractionDigits: 2, 
                     maximumFractionDigits: 2 
@@ -1078,6 +1078,7 @@ async function forwardEstimate(dataIndex) {
     </script>
 </body>
 </html>
+
 
 
 
