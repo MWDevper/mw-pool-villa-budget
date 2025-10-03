@@ -350,6 +350,11 @@
         const LOGGED_IN_USER_KEY = 'budgetAppUser'; 
         const LOGGED_IN_PASSCODE_KEY = 'budgetAppPasscode'; 
 
+        // ✅ FIX 1: เพิ่มการประกาศตัวแปรหลัก
+let transactionsData = []; 
+let estimatesData = [];
+let logsData = [];
+
         // *** 2. CORE UTILITY FUNCTIONS ***
 
         // Utility: Show stylish notification (Toast)
@@ -652,6 +657,9 @@ async function login(isAuto = false) {
 // ... (ฟังก์ชันอื่น ๆ) ...
 
 // Core Data Loading
+// ในไฟล์ poolvilla2.html (ประมาณบรรทัด 660)
+
+// Core Data Loading
 async function loadAllData() {
     showNotification('กำลังโหลดข้อมูล...', 'info', 60000); 
     const payload = { action: 'GET_DATA' };
@@ -663,11 +671,14 @@ async function loadAllData() {
         estimatesData = result.estimates;
         logsData = result.logs;
         
-        // เรียก render ด้วยข้อมูลใหม่ (รวมถึง balance และ visitors)
-        renderData(transactionsData, estimatesData);
-        // ✅ ส่งผลลัพธ์ทั้งหมดไปให้ renderOverview
-        renderOverview(result); 
+        // ❌ ลบบรรทัดที่เคยเรียก renderData(transactionsData, estimatesData); ออก
         
+        // ✅ FIX 2: เรียกใช้ฟังก์ชันแสดงผลทีละส่วนอย่างถูกต้อง
+        renderTransactionData(transactionsData); 
+        renderEstimateData(estimatesData);
+        renderOverview(result); 
+        renderLogs(logsData); 
+
         showNotification('โหลดข้อมูลสำเร็จ', 'success');
     } else {
         showNotification(`โหลดข้อมูลล้มเหลว: ${result.message || 'ข้อผิดพลาด'}`, 'error');
@@ -761,18 +772,20 @@ async function loadAllData() {
             });
         }
         
-        function renderLogs(logs) {
-            const logElement = document.getElementById('log-display');
-            if (logs.length > 0) {
-                // แสดง 10 รายการล่าสุด
-                const latestLogs = logs.slice(-10).reverse();
-                logElement.textContent = latestLogs.map(log => 
-                    `[${log.Timestamp}] ${log.User}: ${log.Action}`
-                ).join('\n');
-            } else {
-                logElement.textContent = 'ไม่มีประวัติการดำเนินการ';
-            }
-        }
+// ในไฟล์ poolvilla2.html (ประมาณบรรทัด 780)
+
+function renderLogs(logs) { // ✅ FIX 3: ใช้ชื่อ parameter เป็น logs เฉยๆ ก็ได้ แต่ต้องใช้ตัวแปรนี้ข้างใน
+    const logElement = document.getElementById('log-display');
+    if (logs && logs.length > 0) { // ✅ เพิ่มการตรวจสอบ logs เพื่อป้องกัน Error
+        // แสดง 10 รายการล่าสุด
+        const latestLogs = logs.slice(-10).reverse();
+        logElement.textContent = latestLogs.map(log => 
+            `[${log.Timestamp}] ${log.User}: ${log.Action}`
+        ).join('\n');
+    } else {
+        logElement.textContent = 'ไม่มีประวัติการดำเนินการ';
+    }
+}
         // ในไฟล์ poolvilla1.html
 // ... (ฟังก์ชันอื่น ๆ) ...
 
@@ -867,6 +880,7 @@ function renderOverview(result) {
     </script>
 </body>
 </html>
+
 
 
 
