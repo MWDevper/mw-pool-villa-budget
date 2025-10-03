@@ -778,38 +778,46 @@ async function loadAllData() {
 
 // Render Overview (Summary Stats)
 // ✅ รับ result object ทั้งหมดเข้ามา
+// ในไฟล์ poolvilla2.html
+// ค้นหาฟังก์ชัน function renderOverview(result) { ... } แล้วแทนที่ทั้งหมด
+
+// Render Overview (Summary Stats)
 function renderOverview(result) {
-    // 1. คำนวณยอดเงินคงเหลือ (จาก Backend)
+    // 1. ✅ แสดงผลยอดเงินคงเหลือ (แก้ไขการจัดรูปแบบตัวเลข)
     const balanceAmount = parseFloat(result.balance) || 0;
     const balanceElement = document.getElementById('balance-display');
+    const balanceClass = balanceAmount >= 0 ? 'balance-positive' : 'balance-negative';
     
-    // แสดงผลยอดเงินคงเหลือ
-    balanceElement.innerHTML = `ยอดเงินคงเหลือ: <span class="${balanceAmount >= 0 ? 'balance-positive' : 'balance-negative'}">${balanceAmount.toLocaleString('th-TH')} บาท</span>`;
+    balanceElement.innerHTML = `
+        ยอดเงินคงเหลือ: 
+        <div class="${balanceClass}">
+            ${balanceAmount.toLocaleString('th-TH', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            })} บาท
+        </div>`;
 
 
-    // 2. แสดงยอดผู้เข้าชมทั้งหมด (พร้อมรายละเอียด user)
+    // 2. ✅ แสดงยอดผู้เข้าชมทั้งหมด (แก้ไข ID และการแสดงผล HTML)
     const visitorCount = parseInt(result.visitorCount) || 0;
     let visitorDetail = '';
     
     if (result.visitors && result.visitors.length > 0) {
-        // ใช้ Set เพื่อดึงชื่อผู้ใช้ที่ไม่ซ้ำกัน
-        const uniqueUsers = [...new Set(result.visitors.map(v => v.User).filter(u => u !== 'System_Check'))];
+        // ใช้ Set เพื่อดึงชื่อผู้ใช้ที่ไม่ซ้ำกัน (ยกเว้น System_Check)
+        const uniqueUsers = [...new Set(result.visitors
+            .map(v => v.User.toString().trim())
+            .filter(u => u !== 'System_Check' && u !== 'System'))
+        ];
         
         if (uniqueUsers.length > 0) {
-            // ✅ แสดงชื่อผู้เข้าชมที่ไม่ซ้ำกัน
-            visitorDetail = ` (เข้าชม: ${uniqueUsers.join(', ')})`;
+            // ใช้ <br> และ inline style เพื่อจัดให้บรรทัดใหม่
+            visitorDetail = `<br><span style="font-size: 0.6em; font-weight: normal; color: #6c757d;">เข้าชมโดย: ${uniqueUsers.join(', ')}</span>`;
         }
     }
 
-    // แสดงผลรวมและรายละเอียดผู้เข้าชม
-    document.getElementById('visitor-count-display').textContent = `${visitorCount}${visitorDetail}`;
-
-
-    // 3. แสดงยอดรวมรายรับ/รายจ่าย/ประเมิน (โค้ดเดิม)
-    // ... (โค้ดคำนวณ totalIncome, totalExpense, totalEstimate, ฯลฯ) ...
-    
-    // ... (โค้ดเดิมส่วนแสดงผลใน overview-cards) ...
-    
+    // ✅ แสดงผลรวมและรายละเอียดผู้เข้าชม (ใช้ ID: visitor-count)
+    const visitorElement = document.getElementById('visitor-count'); 
+    visitorElement.innerHTML = `${visitorCount} ครั้ง${visitorDetail}`;
 }
         
         // Delete Transaction
@@ -859,6 +867,7 @@ function renderOverview(result) {
     </script>
 </body>
 </html>
+
 
 
 
